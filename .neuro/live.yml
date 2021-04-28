@@ -334,19 +334,21 @@ jobs:
       pachctl config set active-context default
       pachctl inspect repo ${PACHY_REPO} || pachctl create repo ${PACHY_REPO}
 
+      # Create a copy of pipeline template
+      cp $[[ volumes.config.mount ]]/pipeline.json /tmp/pipeline.json
       # Add neuro config token
-      sed -i -e s/##NEURO_PASSED_CONFIG##/${NEURO_PASSED_CONFIG}/ $[[ volumes.config.mount ]]/pipeline.json 
+      sed -i -e s/##NEURO_PASSED_CONFIG##/${NEURO_PASSED_CONFIG}/ /tmp/pipeline.json 
 
       # Set ML Flow server URI
       # Using @ is sed regexp command delimiter to work with forward slashes in the URL
-      sed -i -e s@##MLFLOW_SERVER_URI##@${MLFLOW_SERVER_URI}@ $[[ volumes.config.mount ]]/pipeline.json 
+      sed -i -e s@##MLFLOW_SERVER_URI##@${MLFLOW_SERVER_URI}@ /tmp/pipeline.json 
       
       # Propagate batch config
       export BATCH_B64=$(python -m base64 -e < ${PROJECT}/.neuro/data-update.yaml | sed -e ':a' -e 'N' -e '$!ba' -e 's/\n//g')
-      sed -i -e s/##BATCH_B64##/${BATCH_B64}/ $[[ volumes.config.mount ]]/pipeline.json 
+      sed -i -e s/##BATCH_B64##/${BATCH_B64}/ /tmp/pipeline.json 
 
       # Create pipeline
       pachctl list pipeline train >/dev/null && pachctl delete pipeline train >/dev/null
-      pachctl create pipeline -f $[[ volumes.config.mount ]]/pipeline.json 
+      pachctl create pipeline -f /tmp/pipeline.json 
       sleep infinity
 

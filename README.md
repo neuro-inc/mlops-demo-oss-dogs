@@ -83,7 +83,7 @@ pachctl logs -f -p train
 
 Check the results in MLFlow when training in complete.
 
-(Optional step) Add 10 more images to the dataset, label them and let Pahyderm to re-train the model.
+(Optional step) Add 10 more images to the dataset, label them and let Pahyderm retrain the model.
 
 ```shell
 neuro-flow run extend_data --param extend_dataset_by 10

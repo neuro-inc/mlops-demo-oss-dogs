@@ -12,8 +12,8 @@
     ],
     "env": {
       "NEURO_PASSED_CONFIG": "##NEURO_PASSED_CONFIG##",
-      "BATCH_B64": "##BATCH_B64##",
-      "MLFLOW_SERVER_URI": "##MLFLOW_SERVER_URI##"
+      "MLFLOW_SERVER_URI": "##MLFLOW_SERVER_URI##",
+      "BATCH_B64": "##BATCH_B64##"
     }
   },
   "parallelism_spec": {
