@@ -1,0 +1,48 @@
+apiVersion: machinelearning.seldon.io/v1
+kind: SeldonDeployment
+metadata:
+  name: neuro-model
+spec:
+  predictors:
+  - componentSpecs:
+    - spec:
+        containers:
+        - image: registry.onprem-poc.org.neu.ro/yevheniisemendiak/startup_package_test/seldon:20.12.16
+          imagePullPolicy: Always
+          name: model
+          volumeMounts:
+          - mountPath: /storage
+            name: neuro-storage
+        imagePullSecrets:
+        - name: neuro-registry
+        initContainers:
+        - args:
+          - cp -L -r /var/run/neuro/config /root/.neuro;chmod 0700 /root/.neuro;chmod
+            0600 /root/.neuro/db;neuro cp storage:startup_package_test/mlruns/0/bd26789fb5c6441f8a31f4a8da596853/artifacts/model/data/model.h5
+            /storage
+          command:
+          - bash
+          - -c
+          image: neuromation/neuro-extras:20.11.20
+          imagePullPolicy: Always
+          name: neuro-download
+          securityContext:
+            runAsUser: 0
+          volumeMounts:
+          - mountPath: /storage
+            name: neuro-storage
+          - mountPath: /var/run/neuro/config
+            name: neuro-secret
+        volumes:
+        - emptyDir: {}
+          name: neuro-storage
+        - name: neuro-secret
+          secret:
+            secretName: neuro
+    graph:
+      endpoint:
+        type: REST
+      name: model
+      type: MODEL
+    name: predictor
+    replicas: 1

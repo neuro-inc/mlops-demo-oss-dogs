@@ -1,0 +1,350 @@
+kind: live
+title: demo-oss-dogs
+id: mlops_demo_oss_dogs
+
+defaults:
+  preset: cpu-small
+  life_span: 1d
+
+volumes:
+  data:
+    remote: storage:$[[ flow.flow_id ]]/data
+    mount: /data
+    local: data
+  remote_dataset:
+    remote: storage:$[[ flow.flow_id ]]/dataset
+    mount: /dataset
+  project:
+    remote: storage:$[[ flow.flow_id ]]
+    mount: /project
+    local: .
+  postgress_storage:
+    remote: disk:postgress
+    mount: /var/lib/postgresql/data
+  mlflow_artifacts:
+    remote: storage:$[[ flow.flow_id ]]/mlruns
+    mount: /usr/local/share/mlruns
+  label_studio:
+    remote: storage:$[[ flow.flow_id ]]/label-studio
+    mount: /storage-label-studio-project
+    local: label_studio
+  src:
+    remote: storage:$[[ flow.flow_id ]]/src
+    mount: /project/src
+    local: src
+  config:
+    remote: storage:$[[ flow.flow_id ]]/config
+    mount: /project/config
+    local: config
+
+images:
+  train:
+    ref: image:$[[ flow.flow_id ]]:21.1.13-pachyderm
+    dockerfile: $[[ flow.workspace ]]/Dockerfile
+    context: $[[ flow.workspace ]]/
+  seldon:
+    ref: image:$[[ flow.flow_id ]]/seldon:20.12.16
+    dockerfile: $[[ flow.workspace ]]/seldon/seldon.Dockerfile
+    context: $[[ flow.workspace ]]/
+    build_preset: cpu-large
+  label_studio:
+    ref: image:$[[ flow.flow_id ]]/label_studio:21.1.18-pachyderm
+    dockerfile: $[[ flow.workspace ]]/label_studio/label_studio.Dockerfile
+    context: $[[ flow.workspace ]]/label_studio
+
+jobs:
+
+  prepare_remote_dataset:
+    image: neuromation/neuro-extras:20.12.15
+    preset: cpu-small
+    detach: False
+    volumes:
+      - ${{ volumes.remote_dataset.ref_rw }}
+    params:
+      dataset_path:
+        default: http://vision.stanford.edu/aditya86/ImageNetDogs/images.tar
+        descr: URL of dataset to download
+    bash: |
+      DST=$(basename ${{ params.dataset_path }} .tar)
+      if [ ! -e ${{ volumes.remote_dataset.mount }}/$DST ]; then
+        neuro-extras data cp --extract --use-temp-dir ${{ params.dataset_path }} ${{ volumes.remote_dataset.mount }}/$DST;
+      else
+        echo "Dataset is already downloaded, skipping."
+      fi
+
+  extend_data:
+    image: $[[ images.train.ref ]]
+    preset: cpu-small
+    detach: False
+    volumes:
+      - ${{ volumes.remote_dataset.ref_ro }}
+      - secret:gh-rsa:/root/.ssh/id-rsa
+    env:
+      PROJECT: /usr/project
+      PACHY_URI: api.pachyderm.mlops.neu.ro:650
+      PACHY_REPO: dogs-demo
+    params:
+      extend_dataset_by:
+        default: "1"
+        descr: |
+          How many new images to add into current dataset.
+      target_git_branch:
+        default: "master"
+    bash: |
+      echo "Downloading base dataset"
+      echo "IdentityFile ~/.ssh/id-rsa" > ~/.ssh/config
+      ssh-keyscan github.com >> ~/.ssh/known_hosts
+      git clone -b ${{ params.target_git_branch }} git@github.com:neuro-inc/mlops-demo-oss-dogs.git ${PROJECT}
+
+      # Init pachctl
+      pachctl config update context default --pachd-address ${PACHY_URI}
+      pachctl config set active-context default
+      pachctl inspect repo ${PACHY_REPO}
+      
+      export DATA_PATH=${PROJECT}/data/Images
+
+      echo "Extending dataset"
+      python ${PROJECT}/label_studio/extend_dataset.py \
+        --cur_dataset ${DATA_PATH} \
+        --full_dataset ${{ volumes.remote_dataset.mount }}/images/Images/ \
+        --nmber_of_imgs ${{ params.extend_dataset_by }}
+
+      # Push dataset:
+      mkdir -p ${DATA_PATH}
+      # Workaround for https://github.com/pachyderm/pachyderm/issues/4573 :
+      # put each file separately, not the whole directory:
+      pachctl start commit ${PACHY_REPO}@master
+      for img in `ls ${DATA_PATH}`; do
+        echo "Saving to pachyderm: ${DATA_PATH}/$img"
+        pachctl put file ${PACHY_REPO}@master:data/Images/$img --overwrite -f ${DATA_PATH}/$img | tee
+      done
+      pachctl finish commit ${PACHY_REPO}@master
+
+      # Validate dataset:
+      ls ${DATA_PATH} | wc -l
+      pachctl list commit ${PACHY_REPO}@master
+      echo "Total images: $(pachctl list file ${PACHY_REPO}@master:data/Images | grep 'file' | wc -l)"
+
+  label_studio:
+    image: $[[ images.label_studio.ref ]]
+    name: $[[ flow.title ]]-label-studio
+    http_port: 443
+    http_auth: False
+    life_span: 1d
+    detach: False
+    browse: True
+    volumes:
+      - ${{ volumes.label_studio.ref_rw }}
+      - secret:gh-rsa:/root/.ssh/id-rsa
+    env:
+      PROJECT: /usr/project
+      LABEL_STUDIO_PROJECT: /label-studio-project
+      PACHY_URI: api.pachyderm.mlops.neu.ro:650
+      PACHY_REPO: dogs-demo
+    params:
+      target_git_branch:
+        default: master
+    bash: |
+      echo "Downloading base dataset"
+      echo "IdentityFile ~/.ssh/id-rsa" > ~/.ssh/config
+      ssh-keyscan github.com >> ~/.ssh/known_hosts
+      git clone -b ${{ params.target_git_branch }} git@github.com:neuro-inc/mlops-demo-oss-dogs.git ${PROJECT}
+      
+      # Init pachctl
+      pachctl config update context default --pachd-address ${PACHY_URI}
+      pachctl config set active-context default
+      pachctl inspect repo ${PACHY_REPO} || pachctl create repo ${PACHY_REPO}
+      
+      export DATA_PATH=${PROJECT}/data/Images
+
+      # Pull dataset: 
+      pachctl get file ${PACHY_REPO}@master:/data/ -r -o ${PROJECT}/data/ | tee
+      ls -R ${PROJECT}/data
+
+      label-studio init \
+        --label-config ${PROJECT}/label_studio/LabelConfig.xml \
+        --input-path ${DATA_PATH} \
+        --input-format image-dir \
+        --host $(hostname).jobs.${NEURO_JOB_CLUSTER}.org.neu.ro \
+        --port 443 \
+        --allow-serving-local-files \
+        ${LABEL_STUDIO_PROJECT}
+
+      echo "Copying finished labels into local project"
+      cp -rT ${{ volumes.label_studio.mount }}/completions ${LABEL_STUDIO_PROJECT}/completions || echo "No finished labels found!"
+      echo "Starting rsync daemon to sync labels changes back from local FS to storage"
+      lsyncd -delay 1 -rsync ${LABEL_STUDIO_PROJECT}/completions ${{ volumes.label_studio.mount }}/completions
+
+      echo "Starting label-studio"
+      completions_count=$(ls ${LABEL_STUDIO_PROJECT}/completions | grep -v ^d | wc -l) || completions_count=0
+      python ${PROJECT}/label_studio/launch_ls.py \
+        --project_root ${PROJECT} \
+        --ls_project_root ${LABEL_STUDIO_PROJECT} -- \
+        start --use-gevent --no-browser ${LABEL_STUDIO_PROJECT} 
+
+      # Push dataset:
+      ls ${DATA_PATH} | wc -l
+      # Workaround for https://github.com/pachyderm/pachyderm/issues/4573 :
+      # put each file separately, not the whole directory:
+      pachctl start commit ${PACHY_REPO}@master
+      for img in `ls ${DATA_PATH}`; do
+        echo "Saving to pachyderm: ${DATA_PATH}/$img"
+        pachctl put file ${PACHY_REPO}@master:data/Images/$img --overwrite -f ${DATA_PATH}/$img | tee
+      done
+      pachctl put file ${PACHY_REPO}@master:data/result.json --overwrite -f ${PROJECT}/data/result.json | tee
+      pachctl finish commit ${PACHY_REPO}@master
+
+      # Validate dataset:
+      pachctl list commit ${PACHY_REPO}@master
+      echo "Total images: $(pachctl list file ${PACHY_REPO}@master:data/Images | grep 'file' | wc -l)"
+
+  postgres:
+    image: postgres:12.5
+    name: $[[ flow.title ]]-postgres
+    http_port: 5432
+    http_auth: False
+    life_span: 30d
+    detach: True
+    volumes:
+      - ${{ volumes.postgress_storage.remote }}:/var/lib/postgresql/data:rw
+    env:
+      POSTGRES_PASSWORD: password
+      POSTGRES_INITDB_ARGS: ""
+      PGDATA: /var/lib/postgresql/data/pgdata
+
+  mlflow_server:
+    image: neuromation/mlflow:1.11.0
+    name: $[[ flow.title ]]-mlflow-server
+    http_port: 5000
+    http_auth: False
+    browse: True
+    life_span: 30d
+    detach: True
+    volumes:
+      - ${{ volumes.mlflow_artifacts.ref_rw }}
+    cmd: |
+      server --host 0.0.0.0
+        --backend-store-uri=postgresql://postgres:password@${{ inspect_job('postgres').internal_hostname_named }}:5432
+        --default-artifact-root=${{ volumes.mlflow_artifacts.mount }}
+
+  train:
+    image: $[[ images.train.ref ]]
+    preset: gpu-k80-small
+    detach: False
+    life_span: 10d
+    volumes:
+      - $[[ volumes.mlflow_artifacts.ref_rw ]]
+      - secret:gh-rsa:/root/.ssh/id-rsa
+    env:
+      EXPOSE_SSH: "yes"
+      MLFLOW_TRACKING_URI: ${{ inspect_job('mlflow_server').http_url }}
+      PYTHONPATH: /usr/project
+      PROJECT: /usr/project
+      PACHY_URI: api.pachyderm.mlops.neu.ro:650
+      PACHY_REPO: dogs-demo
+    params:
+      target_git_branch:
+        default: "master"
+    bash: |
+        echo "IdentityFile ~/.ssh/id-rsa" > ~/.ssh/config
+        ssh-keyscan github.com >> ~/.ssh/known_hosts
+        git clone -b ${{ params.target_git_branch }} git@github.com:neuro-inc/mlops-demo-oss-dogs.git ${PROJECT}
+        
+        # Init pachctl
+        pachctl config update context default --pachd-address ${PACHY_URI}
+        pachctl config set active-context default
+        pachctl inspect repo ${PACHY_REPO} || pachctl create repo ${PACHY_REPO}
+        
+        # Pull dataset: 
+        pachctl get file ${PACHY_REPO}@master:/data/ -r -o ${PROJECT}/data/ | tee
+        ls -R ${PROJECT}/data
+
+        python -u ${PROJECT}/src/train.py \
+          --data_dir ${PROJECT}/data/Images \
+          --data_description ${PROJECT}/data/result.json
+
+  deploy_inference_platform:
+    image: $[[ images.seldon.ref ]]
+    name: $[[ flow.title ]]-test-inference
+    preset: gpu-k80-small-p
+    http_port: 5000
+    http_auth: False
+    life_span: 5h
+    detach: True
+    params:
+      run_id:
+    volumes:
+      - ${{ volumes.mlflow_artifacts.remote }}/0/${{ params.run_id }}/artifacts/model/data/model.h5:/storage/model.h5
+
+  locust:
+    image: locustio/locust:1.4.1
+    name: $[[ flow.title ]]-locust
+    http_port: 8080
+    http_auth: False
+    life_span: 1d
+    detach: True
+    browse: True
+    params:
+      endpoint_url:
+    volumes:
+      - $[[ upload(volumes.src).ref_ro ]]
+      - $[[ upload(volumes.config).ref_ro ]]
+      - $[[ volumes.remote_dataset.ref_ro ]]
+    env:
+      DOG_IDS: "n02085936, n02088094"
+      IMGS_DIR: $[[ volumes.remote_dataset.mount ]]/images/Images/
+      PYTHONPATH: $[[ volumes.src.mount ]]/..
+    cmd: |
+      -f $[[ volumes.src.mount ]]/locust.py --web-port 8080 -H $[[ params.endpoint_url ]]
+
+  filebrowser:
+    action: gh:neuro-actions/filebrowser@v1.0.0
+    args:
+      volumes_project_remote: $[[ volumes.project.remote ]]
+
+  webdav_mlflow:
+    action: gh:neuro-actions/webdav_server@v1.0.0
+    args:
+      volume_remote: $[[ volumes.mlflow_artifacts.remote ]]
+      job_name: $[[ flow.title ]]-webdav-mlflow
+      http_auth: ""
+
+  create_pipeline:
+    preset: cpu-small
+    pass_config: True
+    detach: True
+    image: $[[ images.train.ref ]]
+    volumes:
+      - secret:gh-rsa:/root/.ssh/id-rsa
+      - $[[ upload(volumes.config).ref_rw ]]
+    env:
+      EXPOSE_SSH: "yes"
+      PYTHONPATH: /usr/project
+      PROJECT: /usr/project
+      PACHY_URI: api.pachyderm.mlops.neu.ro:650
+      PACHY_REPO: dogs-demo
+    bash: |
+      echo "IdentityFile ~/.ssh/id-rsa" > ~/.ssh/config
+      ssh-keyscan github.com 2>/dev/null >> ~/.ssh/known_hosts
+      git clone -b master git@github.com:neuro-inc/mlops-demo-oss-dogs.git ${PROJECT}
+      
+      # Init pachctl
+      pachctl config update context default --pachd-address ${PACHY_URI}
+      pachctl config set active-context default
+      pachctl inspect repo ${PACHY_REPO} || pachctl create repo ${PACHY_REPO}
+
+      # Add neuro config token
+      sed -i -e s/##NEURO_PASSED_CONFIG##/${NEURO_PASSED_CONFIG}/ $[[ volumes.config.mount ]]/pipeline.json 
+
+      # Set ML Flow server URI
+      sed -i -e s/##MLFLOW_SERVER_URI##/${{ inspect_job('mlflow_server').http_url }}/ $[[ volumes.config.mount ]]/pipeline.json 
+      
+      # Propagate batch config
+      export BATCH_B64=$(python -m base64 -e < ${PROJECT}/.neuro/data-update.yaml | sed -e ':a' -e 'N' -e '$!ba' -e 's/\n//g')
+      sed -i -e s/##BATCH_B64##/${BATCH_B64}/ $[[ volumes.config.mount ]]/pipeline.json 
+
+      # Create pipeline
+      pachctl list pipeline train >/dev/null && pachctl delete pipeline train >/dev/null
+      pachctl create pipeline -f $[[ volumes.config.mount ]]/pipeline.json 
+      sleep infinity
+

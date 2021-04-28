@@ -1,0 +1,28 @@
+{
+  "pipeline": {
+    "name": "train"
+  },
+  "description": "Retrain the model after labeling data",
+  "transform": {
+    "image": "neuromation/neuro-flow:21.2.16",
+    "cmd": [
+      "bash",
+      "-c",
+      "[ ! -d /tmp/project ] && ( mkdir -p /tmp/project/.neuro && ( echo $BATCH_B64 | python -m base64 -d - > /tmp/project/.neuro/data-update.yaml ) ) ; cd /tmp/project && neuro-flow bake data-update --param mlflow_server_uri ${MLFLOW_SERVER_URI}"
+    ],
+    "env": {
+      "NEURO_PASSED_CONFIG": "##NEURO_PASSED_CONFIG##",
+      "BATCH_B64": "##BATCH_B64##",
+      "MLFLOW_SERVER_URI": "##MLFLOW_SERVER_URI##"
+    }
+  },
+  "parallelism_spec": {
+    "constant": "1"
+  },
+  "input": {
+    "pfs": {
+      "repo": "dogs-demo",
+      "glob": "/data/result.json"
+    }
+  }
+}
