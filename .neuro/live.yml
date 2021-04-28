@@ -323,6 +323,7 @@ jobs:
       PROJECT: /usr/project
       PACHY_URI: api.pachyderm.mlops.neu.ro:650
       PACHY_REPO: dogs-demo
+      MLFLOW_SERVER_URI: ${{ inspect_job('mlflow_server').http_url }}
     bash: |
       echo "IdentityFile ~/.ssh/id-rsa" > ~/.ssh/config
       ssh-keyscan github.com 2>/dev/null >> ~/.ssh/known_hosts
@@ -337,7 +338,8 @@ jobs:
       sed -i -e s/##NEURO_PASSED_CONFIG##/${NEURO_PASSED_CONFIG}/ $[[ volumes.config.mount ]]/pipeline.json 
 
       # Set ML Flow server URI
-      sed -i -e s/##MLFLOW_SERVER_URI##/${{ inspect_job('mlflow_server').http_url }}/ $[[ volumes.config.mount ]]/pipeline.json 
+      # Using @ is sed regexp command delimiter to work with forward slashes in the URL
+      sed -i -e s@##MLFLOW_SERVER_URI##@${MLFLOW_SERVER_URI}@ $[[ volumes.config.mount ]]/pipeline.json 
       
       # Propagate batch config
       export BATCH_B64=$(python -m base64 -e < ${PROJECT}/.neuro/data-update.yaml | sed -e ':a' -e 'N' -e '$!ba' -e 's/\n//g')

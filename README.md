@@ -54,13 +54,14 @@ Create Pachyderm pipeline that will (re)train model on every dataset update
 neuro-flow run create_pipeline
 ```
 
-## The flow
-
 Download full dataset to storage
 
 ```shell
 neuro-flow run prepare_remote_dataset
 ```
+
+## The flow
+
 
 Pick 15 images from the dataset and put them under Pachyderm
 
@@ -77,17 +78,17 @@ neuro-flow run label_studio
 Perform labeling. Label Studio closes automatically when all images are marked up. Neu.ro platform updates the dataset in Pachyderm and this update triggers the Pachyderm pipeline, which in turns triggers model training. You may follow the training process via:
 
 ```shell
-pachctl inspect pipeline train 
+pachctl logs -f -p train 
 ```
 
-Check the results in MLFlow when training in complete
+Check the results in MLFlow when training in complete.
 
 (Optional step) Add 10 more images to the dataset, label them and let Pahyderm to re-train the model.
 
 ```shell
 neuro-flow run extend_data --param extend_dataset_by 10
 neuro-flow run label_studio
-pachctl inspect pipeline train 
+pachctl logs -f -p train 
 ```
 
 Pick a run id value from ML Flow web UI and deploy trained model via Seldon
