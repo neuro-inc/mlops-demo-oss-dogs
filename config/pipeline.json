@@ -4,16 +4,16 @@
   },
   "description": "Retrain the model after labeling data",
   "transform": {
-    "image": "neuromation/neuro-flow:21.2.16",
+    "image": "neuromation/neuro-flow:21.4.5",
     "cmd": [
       "bash",
       "-c",
-      "[ ! -d /tmp/project ] && ( mkdir -p /tmp/project/.neuro && ( echo $BATCH_B64 | python -m base64 -d - > /tmp/project/.neuro/data-update.yaml ) ) ; cd /tmp/project && neuro-flow bake data-update --param mlflow_server_uri ${MLFLOW_SERVER_URI}"
+      "mkdir -p .neuro; echo $BATCH_B64 | base64 -d > .neuro/training.yaml; echo $PARAMS_B64 | base64 -d > .neuro/params.yaml; neuro-flow bake training --meta-from-file .neuro/params.yaml"
     ],
     "env": {
       "NEURO_PASSED_CONFIG": "##NEURO_PASSED_CONFIG##",
-      "MLFLOW_SERVER_URI": "##MLFLOW_SERVER_URI##",
-      "BATCH_B64": "##BATCH_B64##"
+      "BATCH_B64": "##BATCH_B64##",
+      "PARAMS_B64": "##PARAMS_B64##"
     }
   },
   "parallelism_spec": {

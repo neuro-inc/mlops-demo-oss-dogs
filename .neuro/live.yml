@@ -10,16 +10,14 @@ volumes:
   data:
     remote: storage:$[[ flow.flow_id ]]/data
     mount: /data
-    local: data
   remote_dataset:
     remote: storage:$[[ flow.flow_id ]]/dataset
     mount: /dataset
   project:
     remote: storage:$[[ flow.flow_id ]]
     mount: /project
-    local: .
   postgress_storage:
-    remote: disk:postgress
+    remote: disk:mlops-demo-oss-dogs-postgres
     mount: /var/lib/postgresql/data
   mlflow_artifacts:
     remote: storage:$[[ flow.flow_id ]]/mlruns
@@ -27,7 +25,6 @@ volumes:
   label_studio:
     remote: storage:$[[ flow.flow_id ]]/label-studio
     mount: /storage-label-studio-project
-    local: label_studio
   src:
     remote: storage:$[[ flow.flow_id ]]/src
     mount: /project/src
@@ -46,7 +43,6 @@ images:
     ref: image:$[[ flow.flow_id ]]/seldon:20.12.16
     dockerfile: $[[ flow.workspace ]]/seldon/seldon.Dockerfile
     context: $[[ flow.workspace ]]/
-    build_preset: cpu-large
   label_studio:
     ref: image:$[[ flow.flow_id ]]/label_studio:21.1.18-pachyderm
     dockerfile: $[[ flow.workspace ]]/label_studio/label_studio.Dockerfile
@@ -88,6 +84,10 @@ jobs:
         default: "1"
         descr: |
           How many new images to add into current dataset.
+      extend_params:
+        default: "--skip_annotation_update"
+        descr: |
+          Additional agruments for extend_dataset.py script.
       target_git_branch:
         default: "master"
     bash: |
@@ -107,7 +107,7 @@ jobs:
       python ${PROJECT}/label_studio/extend_dataset.py \
         --cur_dataset ${DATA_PATH} \
         --full_dataset ${{ volumes.remote_dataset.mount }}/images/Images/ \
-        --nmber_of_imgs ${{ params.extend_dataset_by }}
+        --nmber_of_imgs ${{ params.extend_dataset_by }} ${{ params.extend_params }}
 
       # Push dataset:
       mkdir -p ${DATA_PATH}
@@ -205,12 +205,12 @@ jobs:
     http_auth: False
     life_span: 30d
     detach: True
-    volumes:
-      - ${{ volumes.postgress_storage.remote }}:/var/lib/postgresql/data:rw
+    # volumes:
+      # - ${{ volumes.postgress_storage.remote }}:/var/lib/postgresql/data:rw
     env:
       POSTGRES_PASSWORD: password
       POSTGRES_INITDB_ARGS: ""
-      PGDATA: /var/lib/postgresql/data/pgdata
+      # PGDATA: /var/lib/postgresql/data/pgdata
 
   mlflow_server:
     image: neuromation/mlflow:1.11.0
@@ -321,34 +321,41 @@ jobs:
       EXPOSE_SSH: "yes"
       PYTHONPATH: /usr/project
       PROJECT: /usr/project
-      PACHY_URI: api.pachyderm.mlops.neu.ro:650
+      PACHY_URI: ${{ params.pachy_uri }}
       PACHY_REPO: dogs-demo
       MLFLOW_SERVER_URI: ${{ inspect_job('mlflow_server').http_url }}
+      PROJECT_GIT_REPO: ${{ params.project_git_repo }}
+      PROJECT_GIT_BRANCH: ${{ params.project_git_branch }}
+    params:
+      pachy_uri:
+        default: ~
+        descr: URI address of the deployed Pachyderm, even internal address within a K8s cluster
+      project_git_repo: git@github.com:neuro-inc/mlops-demo-oss-dogs.git
+      project_git_branch: ys/finilizing
     bash: |
       echo "IdentityFile ~/.ssh/id-rsa" > ~/.ssh/config
       ssh-keyscan github.com 2>/dev/null >> ~/.ssh/known_hosts
-      git clone -b master git@github.com:neuro-inc/mlops-demo-oss-dogs.git ${PROJECT}
-      
+      git clone -b ${PROJECT_GIT_BRANCH} ${PROJECT_GIT_REPO} ${PROJECT}
+
       # Init pachctl
       pachctl config update context default --pachd-address ${PACHY_URI}
       pachctl config set active-context default
       pachctl inspect repo ${PACHY_REPO} || pachctl create repo ${PACHY_REPO}
 
+      # Store Neuro-flow batch definition base-64 encoded
+      BATCH_B64=$(cat ${PROJECT}/.neuro/training.yaml | base64 -w 0)
+
+      # Substitue Neuro-flow batch parameters from job ENV vars (!) and store them b64 encoded
+      PARAMS_B64=$(cat ${PROJECT}/.neuro/training-batch-params.yaml | envsubst | base64 -w 0)
+
       # Create a copy of pipeline template
       cp $[[ volumes.config.mount ]]/pipeline.json /tmp/pipeline.json
       # Add neuro config token
-      sed -i -e s/##NEURO_PASSED_CONFIG##/${NEURO_PASSED_CONFIG}/ /tmp/pipeline.json 
-
-      # Set ML Flow server URI
-      # Using @ is sed regexp command delimiter to work with forward slashes in the URL
-      sed -i -e s@##MLFLOW_SERVER_URI##@${MLFLOW_SERVER_URI}@ /tmp/pipeline.json 
-      
-      # Propagate batch config
-      export BATCH_B64=$(python -m base64 -e < ${PROJECT}/.neuro/data-update.yaml | sed -e ':a' -e 'N' -e '$!ba' -e 's/\n//g')
-      sed -i -e s/##BATCH_B64##/${BATCH_B64}/ /tmp/pipeline.json 
+      sed -i -e s/##NEURO_PASSED_CONFIG##/${NEURO_PASSED_CONFIG}/ /tmp/pipeline.json
+      # Probagate batch definition and parameters into the Pachyderm pypeline definition
+      sed -i -e s/##BATCH_B64##/${BATCH_B64}/ -e s/##PARAMS_B64##/${PARAMS_B64}/ /tmp/pipeline.json
 
       # Create pipeline
       pachctl list pipeline train >/dev/null && pachctl delete pipeline train >/dev/null
       pachctl create pipeline -f /tmp/pipeline.json 
       sleep infinity
-

@@ -1,0 +1,4 @@
+mlflow_server_uri: $MLFLOW_SERVER_URI
+pachy_uri: $PACHY_URI
+project_git_repo: $PROJECT_GIT_REPO
+project_git_branch: $PROJECT_GIT_BRANCH

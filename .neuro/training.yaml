@@ -29,6 +29,9 @@ volumes:
     mount: /project/config
 params:
   mlflow_server_uri: ~
+  pachy_uri: ~
+  project_git_repo: ~
+  project_git_branch: ~
 
 images:
   train:
@@ -46,15 +49,17 @@ tasks:
       - secret:gh-rsa:/root/.ssh/id-rsa
     env:
       EXPOSE_SSH: "yes"
-      MLFLOW_TRACKING_URI: ${{ params.mlflow_server_uri }}
       PYTHONPATH: /usr/project
       PROJECT: /usr/project
-      PACHY_URI: api.pachyderm.mlops.neu.ro:650
+      PACHY_URI: ${{ params.pachy_uri }}
       PACHY_REPO: dogs-demo
+      MLFLOW_TRACKING_URI: ${{ params.mlflow_server_uri }}
+      PROJECT_GIT_REPO: ${{ params.project_git_repo }}
+      PROJECT_GIT_BRANCH: ${{ params.project_git_branch }}
     bash: |
         echo "IdentityFile ~/.ssh/id-rsa" > ~/.ssh/config
         ssh-keyscan github.com >> ~/.ssh/known_hosts
-        git clone -b master git@github.com:neuro-inc/mlops-demo-oss-dogs.git ${PROJECT}
+        git clone -b ${PROJECT_GIT_BRANCH} ${PROJECT_GIT_REPO} ${PROJECT}
         
         # Init pachctl
         pachctl config update context default --pachd-address ${PACHY_URI}

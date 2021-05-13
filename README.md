@@ -4,9 +4,9 @@ The project description is here.
 
 ## Quick Start
 
-Sign up at [neu.ro](https://neu.ro) and setup your local machine according to [instructions](https://docs.neu.ro/).
+Sign up at [neu.ro](https://app.neu.ro) and setup your local machine according to [instructions](https://docs.neu.ro/).
 
-Assumption: Pachyderm cluster is ready and contains a `dogs-demo` repository.
+Assumption: Pachyderm cluster is deployed and ready to create and run the pipelines. It also contains a `dogs-demo` repository.
 
 ## Preparation
 
@@ -27,13 +27,13 @@ done
 Create persistent disk for Postgresql
 
 ```shell
-neuro disk create --name postgres 1G
+neuro disk create 1G --timeout-unused 30d --name mlops-demo-oss-dogs-postgres
 ```
 
-Create a secret with a private key for GitHub access
+Create a secret with a private SSH key for GitHub repository access (pull/push access should be allowed)
 
 ```shell
-neuro secret create gh-rsa @~/.ssh/id_rsa
+neuro secret add gh-rsa @~/.ssh/id_rsa
 ```
 
 Run Postgresql server (needed by MLFlow)
@@ -63,10 +63,16 @@ neuro-flow run prepare_remote_dataset
 ## The flow
 
 
-Pick 15 images from the dataset and put them under Pachyderm
+Pick 50 images from the dataset and put them under Pachyderm, together with their labels
 
 ```shell
-neuro-flow run extend_data --param extend_dataset_by 15
+neuro-flow run extend_data --param extend_dataset_by 50
+```
+
+Pick 5 images from the dataset and put them under Pachyderm, without their labels
+
+```shell
+neuro-flow run extend_data --param extend_dataset_by 5 --param extend_params ""
 ```
 
 Run LabelStudio in browser in order to label images for training
