@@ -42,7 +42,7 @@ images:
 tasks:
   - id: train
     image: $[[ images.train.ref ]]
-    preset: cpu-small
+    preset: cpu-medium-p
     life_span: 10d
     volumes:
       - $[[ volumes.mlflow_artifacts.ref_rw ]]
