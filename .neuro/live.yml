@@ -270,7 +270,6 @@ jobs:
     image: $[[ images.train.ref ]]
     volumes:
       - secret:gh-rsa:/root/.ssh/id-rsa
-      - $[[ upload(volumes.config).ref_rw ]]
     env:
       EXPOSE_SSH: "yes"
       PYTHONPATH: /usr/project
@@ -293,7 +292,7 @@ jobs:
       PARAMS_B64=$(cat ${PROJECT}/.neuro/training-batch-params.yaml | envsubst | base64 -w 0)
 
       # Create a copy of pipeline template
-      cp $[[ volumes.config.mount ]]/pipeline.json /tmp/pipeline.json
+      cp $${PROJECT}/config/pipeline.json /tmp/pipeline.json
       # Add neuro config token
       sed -i -e s/##NEURO_PASSED_CONFIG##/${NEURO_PASSED_CONFIG}/ /tmp/pipeline.json
       # Probagate batch definition and parameters into the Pachyderm pypeline definition
