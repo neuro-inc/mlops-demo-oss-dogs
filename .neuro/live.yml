@@ -10,8 +10,7 @@ defaults:
     PACHY_URI: pachd.pachyderm.svc.cluster.local:650
     PACHY_REPO: dogs-demo
     PROJECT_GIT_REPO: git@github.com:neuro-inc/mlops-demo-oss-dogs.git
-    # todo: change to master when merging the PR
-    PROJECT_GIT_BRANCH: ys/finilizing
+    PROJECT_GIT_BRANCH: master
 
 volumes:
   remote_dataset:
