@@ -4,54 +4,41 @@ The project description is here.
 
 ## Quick Start
 
-Sign up at [neu.ro](https://neu.ro) and setup your local machine according to [instructions](https://docs.neu.ro/).
+Sign up at [app.neu.ro](https://app.neu.ro) and setup your local machine according to [instructions](https://docs.neu.ro/getting-started#installing-the-cli).
 
-Assumption: Pachyderm cluster is ready and contains a `dogs-demo` repository.
+Assumption: Pachyderm cluster is deployed and ready to create and run the pipelines.
+
+To get access to sandbox environment which contains all the components installed and configured please [contact our team](team@neu.ro).
 
 ## Preparation
 
 ```shell
-pip install -U neuro-cli neuro-flow
 neuro login
 ```
 
 Build images used in the flow
 
-```shell
-for image in train seldon label_studio
-do 
-  neuro-flow build "$image"
-done
+```
+neuro-flow build ALL
 ```
 
-Create persistent disk for Postgresql
+Create a secret with a private SSH key for GitHub repository access (pull/push access should be allowed, SSH key should not be protected with a passphase)
 
 ```shell
-neuro disk create --name postgres 1G
+neuro secret add gh-rsa @~/.ssh/id_rsa
 ```
 
-Create a secret with a private key for GitHub access
+Set up the variables provided by Neu.ro team needed to run the loads in your cluster.
 
 ```shell
-neuro secret create gh-rsa @~/.ssh/id_rsa
-```
-
-Run Postgresql server (needed by MLFlow)
-
-```shell
-neuro-flow run postgres
-```
-
-Run MLFlow server for experiment and model tracking
-
-```shell
-neuro-flow run mlflow_server
+export MLFLOW_STORAGE=<storage:path>
+export MLFLOW_URI=<URI>
 ```
 
 Create Pachyderm pipeline that will (re)train model on every dataset update
 
 ```shell
-neuro-flow run create_pipeline
+neuro-flow run create_pipeline --param mlflow_storage $MLFLOW_STORAGE --param mlflow_uri $MLFLOW_URI
 ```
 
 Download full dataset to storage
@@ -62,43 +49,71 @@ neuro-flow run prepare_remote_dataset
 
 ## The flow
 
+Each update of the dataset creates a [Pachyderm](https://www.pachyderm.com/) commit. If this commit also affects image labels, it triggers the Pachyderm pipeline, which in turn triggers model training on a platform.
 
-Pick 15 images from the dataset and put them under Pachyderm
+- Pick 15 images from the dataset and put them under Pachyderm
 
-```shell
-neuro-flow run extend_data --param extend_dataset_by 15
-```
+  ```shell
+  neuro-flow run extend_data --param extend_dataset_by 15
+  ```
 
-Run LabelStudio in browser in order to label images for training
+- Run [Label Studio](https://labelstud.io/) in browser in order to process them for training. Label Studio closes automatically when all images are marked up and commits a new dataset version, which triggers training. You will the progress in logs.
 
-```shell
-neuro-flow run label_studio
-```
+  ```shell
+  neuro-flow run label_studio
+  ```
 
-Perform labeling. Label Studio closes automatically when all images are marked up. Neu.ro platform updates the dataset in Pachyderm and this update triggers the Pachyderm pipeline, which in turns triggers model training. You may follow the training process via:
+- You may follow the training process in [MLFlow](https://www.mlflow.org/) server WebUI using the provided link and in Pachyderm pipeline logs:
+  ```shell
+  pachctl config update context default --pachd-address <Pachyderm server address>
+  pachctl logs -f -p train 
+  ```
 
-```shell
-pachctl logs -f -p train 
-```
+- Pick a run id value from MLFlow web UI and deploy trained model as a REST API on the platform
 
-Check the results in MLFlow when training in complete.
+  ```shell
+  neuro-flow run deploy_inference_platform --param run_id XXXXXX  --param mlflow_storage $MLFLOW_STORAGE
+  ```
 
-(Optional step) Add 10 more images to the dataset, label them and let Pahyderm retrain the model.
+- Run deployed model's stress test via Locust (open up web UI), specifying model endpoint URI (check Locust job description in live.yaml for hints).
+
+  ```shell
+  neuro-flow run locust --param endpoint_url <Address>
+  ```
+
+- Run [SHAP](https://shap.readthedocs.io/en/latest/index.html) in Jupyter Notebook to explain the output of trained model.
+
+  ```shell
+  neuro-flow run jupyter --param run_id XXXXXX --param mlflow_storage $MLFLOW_STORAGE
+  ```
+
+## Optional steps:
+- Add 10 more images to the dataset, label them and let Pahyderm retrain the model.
 
 ```shell
 neuro-flow run extend_data --param extend_dataset_by 10
 neuro-flow run label_studio
-pachctl logs -f -p train 
 ```
 
-Pick a run id value from ML Flow web UI and deploy trained model via Seldon
+- Deploy model to Seldon using our Kubernetes [MLFlow2Seldon operator](https://github.com/neuro-inc/mlops-k8s-mlflow2seldon) (assume operator is already deployed). In this case you also need the Seldon Core installation up and running in the cluster.
+
+## Additional
+You might also run MLFlow server by yourself, but in this case, you will need to replace MLFlow server URI in env configuration.
+
+Create persistent disk for Postgresql
 
 ```shell
-neuro-flow run deploy_inference_platform --param run_id XXXXXX
+neuro disk create 1G --timeout-unused 30d --name mlops-demo-oss-dogs-postgres
 ```
 
-Run deployed model's stress test via locust (open up web UI)
+Run Postgresql server (needed by MLFlow)
 
 ```shell
-neuro-flow run locust
+neuro-flow run postgres
+```
+
+Run MLFlow server for experiment and model tracking. Note, in this setup we imply personal use of MLFlow server (each user will connect to its own server)
+
+```shell
+neuro-flow run mlflow_server
 ```

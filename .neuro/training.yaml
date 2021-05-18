@@ -5,56 +5,41 @@ id: mlops_demo_oss_dogs
 defaults:
   cache:
     strategy: none
-volumes:
-  data:
-    remote: storage:$[[ flow.flow_id ]]/data
-    mount: /data
-  remote_dataset:
-    remote: storage:$[[ flow.flow_id ]]/dataset
-    mount: /dataset
-  project:
-    remote: storage:$[[ flow.flow_id ]]
-    mount: /project
-  mlflow_artifacts:
-    remote: storage:$[[ flow.flow_id ]]/mlruns
-    mount: /usr/local/share/mlruns
-  label_studio:
-    remote: storage:$[[ flow.flow_id ]]/label-studio
-    mount: /storage-label-studio-project
-  src:
-    remote: storage:$[[ flow.flow_id ]]/src
-    mount: /project/src
-  config:
-    remote: storage:$[[ flow.flow_id ]]/config
-    mount: /project/config
+
 params:
-  mlflow_server_uri: ~
+  mlflow_storage: ~
+  mlflow_uri: ~
+  pachy_uri: ~
+  project_git_repo: ~
+  project_git_branch: ~
 
 images:
   train:
-    ref: image:$[[ flow.flow_id ]]:21.1.13-pachyderm
+    ref: image:$[[ flow.flow_id ]]/train:21.5.13-pachyderm
   seldon:
     ref: image:$[[ flow.flow_id ]]/seldon:20.12.16
 
 tasks:
   - id: train
     image: $[[ images.train.ref ]]
-    preset: cpu-small
+    preset: cpu-medium-p
     life_span: 10d
     volumes:
-      - $[[ volumes.mlflow_artifacts.ref_rw ]]
+      - ${{ params.mlflow_storage }}:/usr/local/share/mlruns:rw
       - secret:gh-rsa:/root/.ssh/id-rsa
     env:
       EXPOSE_SSH: "yes"
-      MLFLOW_TRACKING_URI: ${{ params.mlflow_server_uri }}
       PYTHONPATH: /usr/project
       PROJECT: /usr/project
-      PACHY_URI: api.pachyderm.mlops.neu.ro:650
+      PACHY_URI: ${{ params.pachy_uri }}
       PACHY_REPO: dogs-demo
+      MLFLOW_TRACKING_URI: ${{ params.mlflow_uri }}
+      PROJECT_GIT_REPO: ${{ params.project_git_repo }}
+      PROJECT_GIT_BRANCH: ${{ params.project_git_branch }}
     bash: |
         echo "IdentityFile ~/.ssh/id-rsa" > ~/.ssh/config
         ssh-keyscan github.com >> ~/.ssh/known_hosts
-        git clone -b master git@github.com:neuro-inc/mlops-demo-oss-dogs.git ${PROJECT}
+        git clone -b ${PROJECT_GIT_BRANCH} ${PROJECT_GIT_REPO} ${PROJECT}
         
         # Init pachctl
         pachctl config update context default --pachd-address ${PACHY_URI}

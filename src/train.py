@@ -1,6 +1,7 @@
 import argparse
 import random as rn
 import pathlib
+from src.dataset import DogsDataset
 from typing import Optional, List
 
 import tensorflow as tf
@@ -8,14 +9,13 @@ import numpy as np
 import mlflow
 from sklearn.model_selection import train_test_split
 
-from src.preprocessing import extract_features_labels
+from src.preprocessing import split_json
 from src.model import get_model
 from config.model import (
     CLASS_ENCODING,
     RD_SEED,
     SPLIT_SEED,
     TEST_SIZE,
-    BATCH_SIZE,
     EPOCHS,
 )
 
@@ -31,23 +31,31 @@ def train(args: argparse.Namespace) -> None:
     rn.seed(RD_SEED)
 
     mlflow.log_metric("test_size", TEST_SIZE)
-    features, labels = extract_features_labels(
+    images, labels = split_json(args.data_description)
+
+    X_train, X_test, Y_train, Y_test = train_test_split(
+        images, labels, test_size=TEST_SIZE, stratify=labels, random_state=SPLIT_SEED
+    )
+
+    train_ds = DogsDataset(
         args.data_dir,
-        args.data_description,
+        X_train,
+        Y_train,
+        CLASS_ENCODING,
+    )
+    validation_ds = DogsDataset(
+        args.data_dir,
+        X_test,
+        Y_test,
         CLASS_ENCODING,
     )
 
-    X_train, X_test, Y_train, Y_test = train_test_split(
-        features, labels, test_size=TEST_SIZE, stratify=labels, random_state=SPLIT_SEED
-    )
-
     model = get_model()
+
     history = model.fit(
-        X_train,
-        Y_train,
+        train_ds,
         epochs=EPOCHS,
-        batch_size=BATCH_SIZE,
-        validation_data=(X_test, Y_test),
+        validation_data=validation_ds,
     )
 
     final_val_acc = history.history["val_acc"][-1]
@@ -90,5 +98,3 @@ if __name__ == "__main__":
     mlflow.keras.autolog()
     args = get_args()
     train(args)
-    print(f"run_id = {mlflow.active_run().info.run_id}")
-    print(f"::set-output name=run_id::{mlflow.active_run().info.run_id}")
