@@ -15,7 +15,7 @@ params:
 
 images:
   train:
-    ref: image:$[[ flow.flow_id ]]:21.1.13-pachyderm
+    ref: image:$[[ flow.flow_id ]]/train:21.5.13-pachyderm
   seldon:
     ref: image:$[[ flow.flow_id ]]/seldon:20.12.16
 
