@@ -16,15 +16,6 @@ volumes:
   remote_dataset:
     remote: storage:$[[ flow.flow_id ]]/dataset
     mount: /dataset
-  postgress_storage:
-    remote: disk:mlops-demo-oss-dogs-postgres
-    mount: /var/lib/postgresql/data
-  mlflow_artifacts:
-    remote: storage:$[[ flow.flow_id ]]/mlruns
-    mount: /usr/local/share/mlruns
-  label_studio:
-    remote: storage:$[[ flow.flow_id ]]/label-studio
-    mount: /storage-label-studio-project
   src:
     remote: storage:$[[ flow.flow_id ]]/src
     mount: /usr/project/src
@@ -56,6 +47,52 @@ images:
     build_preset: cpu-medium-p
 
 jobs:
+  create_pipeline:
+    preset: cpu-small
+    pass_config: True
+    detach: True
+    image: $[[ images.train.ref ]]
+    volumes:
+      - secret:gh-rsa:/root/.ssh/id-rsa
+    params:
+      mlflow_storage:
+        descr: Storage path, where MLFlow server stores trained model binaries
+      mlflow_uri:
+        descr: MLFlow server URI
+    env:
+      EXPOSE_SSH: "yes"
+      PYTHONPATH: /usr/project
+      PROJECT: /usr/project
+      MLFLOW_STORAGE: ${{ params.mlflow_storage }}
+      MLFLOW_URI: ${{ params.mlflow_uri }}
+    bash: |
+      echo "IdentityFile ~/.ssh/id-rsa" > ~/.ssh/config
+      ssh-keyscan github.com 2>/dev/null >> ~/.ssh/known_hosts
+      git clone -b ${PROJECT_GIT_BRANCH} ${PROJECT_GIT_REPO} ${PROJECT}
+
+      # Init pachctl
+      pachctl config update context default --pachd-address ${PACHY_URI}
+      pachctl config set active-context default
+      pachctl inspect repo ${PACHY_REPO} || pachctl create repo ${PACHY_REPO}
+
+      # Store Neuro-flow batch definition base-64 encoded
+      BATCH_B64=$(cat ${PROJECT}/.neuro/training.yaml | base64 -w 0)
+
+      # Substitue Neuro-flow batch parameters from job ENV vars (!) and store them b64 encoded
+      PARAMS_B64=$(cat ${PROJECT}/.neuro/training-batch-params.yaml | envsubst | base64 -w 0)
+
+      # Create a copy of pipeline template
+      cp $${PROJECT}/config/pipeline.json /tmp/pipeline.json
+      # Add neuro config token
+      sed -i -e s/##NEURO_PASSED_CONFIG##/${NEURO_PASSED_CONFIG}/ /tmp/pipeline.json
+      # Probagate batch definition and parameters into the Pachyderm pypeline definition
+      sed -i -e s/##BATCH_B64##/${BATCH_B64}/ -e s/##PARAMS_B64##/${PARAMS_B64}/ /tmp/pipeline.json
+
+      # Create pipeline
+      pachctl list pipeline train >/dev/null && pachctl delete pipeline train >/dev/null
+      pachctl create pipeline -f /tmp/pipeline.json
+      # to keep the token alive, will be fixed soon
+      sleep infinity
 
   prepare_remote_dataset:
     image: neuromation/neuro-extras:20.12.15
@@ -131,7 +168,6 @@ jobs:
     detach: False
     browse: True
     volumes:
-      - ${{ volumes.label_studio.ref_rw }}
       - secret:gh-rsa:/root/.ssh/id-rsa
     env:
       PROJECT: /usr/project
@@ -189,37 +225,6 @@ jobs:
       pachctl list commit ${PACHY_REPO}@master
       echo "Total images: $(pachctl list file ${PACHY_REPO}@master:data/Images | grep 'file' | wc -l)"
 
-  postgres:
-    image: postgres:12.5
-    name: $[[ flow.title ]]-postgres
-    preset: cpu-small
-    http_port: 5432
-    http_auth: False
-    life_span: 30d
-    detach: True
-    volumes:
-      - ${{ volumes.postgress_storage.ref_rw }}
-    env:
-      POSTGRES_PASSWORD: password
-      POSTGRES_INITDB_ARGS: ""
-      PGDATA: ${{ volumes.postgress_storage.mount }}/pgdata
-
-  mlflow_server:
-    image: neuromation/mlflow:1.11.0
-    name: $[[ flow.title ]]-mlflow-server
-    preset: cpu-small
-    http_port: 5000
-    http_auth: False
-    browse: True
-    life_span: 30d
-    detach: True
-    volumes:
-      - ${{ volumes.mlflow_artifacts.ref_rw }}
-    cmd: |
-      server --host 0.0.0.0
-        --backend-store-uri=postgresql://postgres:password@${{ inspect_job('postgres').internal_hostname_named }}:5432
-        --default-artifact-root=${{ volumes.mlflow_artifacts.mount }}
-
   deploy_inference_platform:
     image: $[[ images.seldon.ref ]]
     name: $[[ flow.title ]]-test-inference
@@ -230,8 +235,11 @@ jobs:
     detach: True
     params:
       run_id:
+        descr: MLFlow run ID, which model should be deployed
+      mlflow_storage:
+        descr: Storage path, where MLFlow server stores model binaries
     volumes:
-      - ${{ volumes.mlflow_artifacts.remote }}/0/${{ params.run_id }}/artifacts/model/data/model.h5:/storage/model.h5
+      - ${{ params.mlflow_storage }}/0/${{ params.run_id }}/artifacts/model/data/model.h5:/storage/model.h5
 
   locust:
     image: locustio/locust:1.4.1
@@ -256,53 +264,6 @@ jobs:
     cmd: |
       -f $[[ volumes.src.mount ]]/locust.py --web-port 8080 -H $[[ params.endpoint_url ]]
 
-  filebrowser:
-    # https://neu-ro.gitbook.io/neuro-flow/reference/actions-syntax
-    action: gh:neuro-actions/filebrowser@v1.0.1
-    args:
-      volumes_project_remote: storage:$[[ flow.flow_id ]]
-
-  create_pipeline:
-    preset: cpu-small
-    pass_config: True
-    detach: True
-    image: $[[ images.train.ref ]]
-    volumes:
-      - secret:gh-rsa:/root/.ssh/id-rsa
-    env:
-      EXPOSE_SSH: "yes"
-      PYTHONPATH: /usr/project
-      PROJECT: /usr/project
-      MLFLOW_SERVER_URI: ${{ inspect_job('mlflow_server').http_url }}
-    bash: |
-      echo "IdentityFile ~/.ssh/id-rsa" > ~/.ssh/config
-      ssh-keyscan github.com 2>/dev/null >> ~/.ssh/known_hosts
-      git clone -b ${PROJECT_GIT_BRANCH} ${PROJECT_GIT_REPO} ${PROJECT}
-
-      # Init pachctl
-      pachctl config update context default --pachd-address ${PACHY_URI}
-      pachctl config set active-context default
-      pachctl inspect repo ${PACHY_REPO} || pachctl create repo ${PACHY_REPO}
-
-      # Store Neuro-flow batch definition base-64 encoded
-      BATCH_B64=$(cat ${PROJECT}/.neuro/training.yaml | base64 -w 0)
-
-      # Substitue Neuro-flow batch parameters from job ENV vars (!) and store them b64 encoded
-      PARAMS_B64=$(cat ${PROJECT}/.neuro/training-batch-params.yaml | envsubst | base64 -w 0)
-
-      # Create a copy of pipeline template
-      cp $${PROJECT}/config/pipeline.json /tmp/pipeline.json
-      # Add neuro config token
-      sed -i -e s/##NEURO_PASSED_CONFIG##/${NEURO_PASSED_CONFIG}/ /tmp/pipeline.json
-      # Probagate batch definition and parameters into the Pachyderm pypeline definition
-      sed -i -e s/##BATCH_B64##/${BATCH_B64}/ -e s/##PARAMS_B64##/${PARAMS_B64}/ /tmp/pipeline.json
-
-      # Create pipeline
-      pachctl list pipeline train >/dev/null && pachctl delete pipeline train >/dev/null
-      pachctl create pipeline -f /tmp/pipeline.json
-      # to keep the token alive, will be fixed soon
-      sleep infinity
-
   jupyter:                                                                     
     image: $[[ images.train.ref ]]
     name: $[[ flow.title ]]-jupyter
@@ -313,13 +274,16 @@ jobs:
     detach: False
     volumes:
       - "${{ upload(volumes.notebooks).ref_rw }}"
-      - ${{ volumes.mlflow_artifacts.remote }}/0/${{ params.run_id }}/artifacts/model/data/model.h5:/storage/model.h5
+      - ${{ params.mlflow_storage }}/0/${{ params.run_id }}/artifacts/model/data/model.h5:/storage/model.h5
     env:
       PYTHONPATH: /usr/project
       PROJECT: /usr/project
       EXPOSE_SSH: "yes"
     params:
-      run_id: ~
+      run_id:
+        descr: MLFlow run ID, which model should be deployed
+      mlflow_storage:
+        descr: Storage path, where MLFlow server stores model binaries
     bash: |
       # Init pachctl
       pachctl config update context default --pachd-address ${PACHY_URI}
@@ -335,3 +299,41 @@ jobs:
         --notebook-dir=${{ volumes.notebooks.mount }} \
         --NotebookApp.shutdown_no_activity_timeout=7200 \
         --MappingKernelManager.cull_idle_timeout=7200
+
+# Additional jobs
+  filebrowser:
+    # https://neu-ro.gitbook.io/neuro-flow/reference/actions-syntax
+    action: gh:neuro-actions/filebrowser@v1.0.1
+    args:
+      volumes_project_remote: storage:$[[ flow.flow_id ]]
+
+  postgres:
+    image: postgres:12.5
+    name: $[[ flow.title ]]-postgres
+    preset: cpu-small
+    http_port: 5432
+    http_auth: False
+    life_span: 30d
+    detach: True
+    volumes:
+      - disk:mlops-demo-oss-dogs-postgres:/var/lib/postgresql/data:rw
+    env:
+      POSTGRES_PASSWORD: password
+      POSTGRES_INITDB_ARGS: ""
+      PGDATA: /var/lib/postgresql/data/pgdata
+
+  mlflow_server:
+    image: neuromation/mlflow:1.11.0
+    name: $[[ flow.title ]]-mlflow-server
+    preset: cpu-small
+    http_port: 5000
+    http_auth: False
+    browse: True
+    life_span: 30d
+    detach: True
+    volumes:
+      - storage:${{ flow.flow_id }}/mlruns:/usr/local/share/mlruns
+    cmd: |
+      server --host 0.0.0.0
+        --backend-store-uri=postgresql://postgres:password@${{ inspect_job('postgres').internal_hostname_named }}:5432
+        --default-artifact-root=/usr/local/share/mlruns

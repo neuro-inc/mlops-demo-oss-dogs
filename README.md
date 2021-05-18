@@ -24,34 +24,23 @@ do
 done
 ```
 
-Create persistent disk for Postgresql
-
-```shell
-neuro disk create 1G --timeout-unused 30d --name mlops-demo-oss-dogs-postgres
-```
-
 Create a secret with a private SSH key for GitHub repository access (pull/push access should be allowed, SSH key should not be protected with a passphase)
 
 ```shell
 neuro secret add gh-rsa @~/.ssh/id_rsa
 ```
 
-Run Postgresql server (needed by MLFlow)
+Set up the variables provided by Neu.ro team needed to run the loads in your cluster.
 
 ```shell
-neuro-flow run postgres
-```
-
-Run MLFlow server for experiment and model tracking. Note, in this setup we imply personal use of MLFlow server (each user will connect to its own server)
-
-```shell
-neuro-flow run mlflow_server
+export MLFLOW_STORAGE=<storage:path>
+export MLFLOW_URI=<URI>
 ```
 
 Create Pachyderm pipeline that will (re)train model on every dataset update
 
 ```shell
-neuro-flow run create_pipeline
+neuro-flow run create_pipeline --param mlflow_storage $MLFLOW_STORAGE --param mlflow_uri $MLFLOW_URI
 ```
 
 Download full dataset to storage
@@ -76,10 +65,8 @@ Each update of the dataset creates a [Pachyderm](https://www.pachyderm.com/) com
   neuro-flow run label_studio
   ```
 
-- You may follow the training process in [MLFlow](https://www.mlflow.org/) server WebUI and in Pachyderm pipeline logs:
+- You may follow the training process in [MLFlow](https://www.mlflow.org/) server WebUI using the provided link and in Pachyderm pipeline logs:
   ```shell
-  neuro-flow run mlflow_server
-
   pachctl config update context default --pachd-address <Pachyderm server address>
   pachctl logs -f -p train 
   ```
@@ -87,7 +74,7 @@ Each update of the dataset creates a [Pachyderm](https://www.pachyderm.com/) com
 - Pick a run id value from MLFlow web UI and deploy trained model as a REST API on the platform
 
   ```shell
-  neuro-flow run deploy_inference_platform --param run_id XXXXXX
+  neuro-flow run deploy_inference_platform --param run_id XXXXXX  --param mlflow_storage $MLFLOW_STORAGE
   ```
 
 - Run deployed model's stress test via Locust (open up web UI), specifying model endpoint URI (check Locust job description in live.yaml for hints).
@@ -99,7 +86,7 @@ Each update of the dataset creates a [Pachyderm](https://www.pachyderm.com/) com
 - Run [SHAP](https://shap.readthedocs.io/en/latest/index.html) in Jupyter Notebook to explain the output of trained model.
 
   ```shell
-  neuro-flow run jupyter --param run_id XXXXXX
+  neuro-flow run jupyter --param run_id XXXXXX --param mlflow_storage $MLFLOW_STORAGE
   ```
 
 ## Optional steps:
@@ -110,4 +97,25 @@ neuro-flow run extend_data --param extend_dataset_by 10
 neuro-flow run label_studio
 ```
 
-- Deploy model to Seldon using our Kubernetes [MLFlow2Seldon operator](https://github.com/neuro-inc/mlops-k8s-mlflow2seldon) (Kubernetes access required).
+- Deploy model to Seldon using our Kubernetes [MLFlow2Seldon operator](https://github.com/neuro-inc/mlops-k8s-mlflow2seldon) (assume operator is already deployed).
+
+## Additional
+You might also run MLFlow server by yourself, but in this case, you will need to replace MLFlow server URI in env configuration.
+
+Create persistent disk for Postgresql
+
+```shell
+neuro disk create 1G --timeout-unused 30d --name mlops-demo-oss-dogs-postgres
+```
+
+Run Postgresql server (needed by MLFlow)
+
+```shell
+neuro-flow run postgres
+```
+
+Run MLFlow server for experiment and model tracking. Note, in this setup we imply personal use of MLFlow server (each user will connect to its own server)
+
+```shell
+neuro-flow run mlflow_server
+```

@@ -5,30 +5,10 @@ id: mlops_demo_oss_dogs
 defaults:
   cache:
     strategy: none
-volumes:
-  data:
-    remote: storage:$[[ flow.flow_id ]]/data
-    mount: /data
-  remote_dataset:
-    remote: storage:$[[ flow.flow_id ]]/dataset
-    mount: /dataset
-  project:
-    remote: storage:$[[ flow.flow_id ]]
-    mount: /project
-  mlflow_artifacts:
-    remote: storage:$[[ flow.flow_id ]]/mlruns
-    mount: /usr/local/share/mlruns
-  label_studio:
-    remote: storage:$[[ flow.flow_id ]]/label-studio
-    mount: /storage-label-studio-project
-  src:
-    remote: storage:$[[ flow.flow_id ]]/src
-    mount: /project/src
-  config:
-    remote: storage:$[[ flow.flow_id ]]/config
-    mount: /project/config
+
 params:
-  mlflow_server_uri: ~
+  mlflow_storage: ~
+  mlflow_uri: ~
   pachy_uri: ~
   project_git_repo: ~
   project_git_branch: ~
@@ -45,7 +25,7 @@ tasks:
     preset: cpu-medium-p
     life_span: 10d
     volumes:
-      - $[[ volumes.mlflow_artifacts.ref_rw ]]
+      - ${{ params.mlflow_storage }}:/usr/local/share/mlruns:rw
       - secret:gh-rsa:/root/.ssh/id-rsa
     env:
       EXPOSE_SSH: "yes"
@@ -53,7 +33,7 @@ tasks:
       PROJECT: /usr/project
       PACHY_URI: ${{ params.pachy_uri }}
       PACHY_REPO: dogs-demo
-      MLFLOW_TRACKING_URI: ${{ params.mlflow_server_uri }}
+      MLFLOW_TRACKING_URI: ${{ params.mlflow_uri }}
       PROJECT_GIT_REPO: ${{ params.project_git_repo }}
       PROJECT_GIT_BRANCH: ${{ params.project_git_branch }}
     bash: |
