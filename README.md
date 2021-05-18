@@ -4,24 +4,22 @@ The project description is here.
 
 ## Quick Start
 
-Sign up at [app.neu.ro](https://app.neu.ro) and setup your local machine according to [instructions](https://docs.neu.ro/).
+Sign up at [app.neu.ro](https://app.neu.ro) and setup your local machine according to [instructions](https://docs.neu.ro/getting-started#installing-the-cli).
 
 Assumption: Pachyderm cluster is deployed and ready to create and run the pipelines.
+
+To get access to sandbox environment which contains all the components installed and configured please [contact our team](team@neu.ro).
 
 ## Preparation
 
 ```shell
-pip install -U neuro-cli neuro-flow
 neuro login
 ```
 
 Build images used in the flow
 
-```shell
-for image in train seldon label_studio
-do 
-  neuro-flow build "$image"
-done
+```
+neuro-flow build ALL
 ```
 
 Create a secret with a private SSH key for GitHub repository access (pull/push access should be allowed, SSH key should not be protected with a passphase)
@@ -51,7 +49,7 @@ neuro-flow run prepare_remote_dataset
 
 ## The flow
 
-Each update of the dataset creates a [Pachyderm](https://www.pachyderm.com/) commit. If this commit also affects image labels, it triggers the Pachyderm pipeline, which in turns triggers model training on a platform.
+Each update of the dataset creates a [Pachyderm](https://www.pachyderm.com/) commit. If this commit also affects image labels, it triggers the Pachyderm pipeline, which in turn triggers model training on a platform.
 
 - Pick 15 images from the dataset and put them under Pachyderm
 
@@ -59,7 +57,7 @@ Each update of the dataset creates a [Pachyderm](https://www.pachyderm.com/) com
   neuro-flow run extend_data --param extend_dataset_by 15
   ```
 
-- Run [Label Studio](https://labelstud.io/) in browser in order to process them for training. Label Studio closes automatically when all images are marked up and commits a new dataset version, which triggers training.
+- Run [Label Studio](https://labelstud.io/) in browser in order to process them for training. Label Studio closes automatically when all images are marked up and commits a new dataset version, which triggers training. You will the progress in logs.
 
   ```shell
   neuro-flow run label_studio
@@ -97,7 +95,7 @@ neuro-flow run extend_data --param extend_dataset_by 10
 neuro-flow run label_studio
 ```
 
-- Deploy model to Seldon using our Kubernetes [MLFlow2Seldon operator](https://github.com/neuro-inc/mlops-k8s-mlflow2seldon) (assume operator is already deployed).
+- Deploy model to Seldon using our Kubernetes [MLFlow2Seldon operator](https://github.com/neuro-inc/mlops-k8s-mlflow2seldon) (assume operator is already deployed). In this case you also need the Seldon Core installation up and running in the cluster.
 
 ## Additional
 You might also run MLFlow server by yourself, but in this case, you will need to replace MLFlow server URI in env configuration.
