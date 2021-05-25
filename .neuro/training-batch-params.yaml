@@ -1,3 +1,4 @@
+train_image_ref: $TRAIN_IMAGE_REF
 mlflow_storage: $MLFLOW_STORAGE
 mlflow_uri: $MLFLOW_URI
 pachy_uri: $PACHY_URI

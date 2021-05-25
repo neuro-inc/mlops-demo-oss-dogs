@@ -7,21 +7,16 @@ defaults:
     strategy: none
 
 params:
+  train_image_ref: ~
   mlflow_storage: ~
   mlflow_uri: ~
   pachy_uri: ~
   project_git_repo: ~
   project_git_branch: ~
 
-images:
-  train:
-    ref: image:$[[ flow.flow_id ]]/train:21.5.13-pachyderm
-  seldon:
-    ref: image:$[[ flow.flow_id ]]/seldon:20.12.16
-
 tasks:
   - id: train
-    image: $[[ images.train.ref ]]
+    image: $[[ params.train_image_ref ]]
     preset: cpu-medium-p
     life_span: 10d
     volumes:

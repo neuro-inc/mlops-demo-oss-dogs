@@ -7,7 +7,7 @@ defaults:
   life_span: 1d
   env:
     # Those env vars will be assigned to every job in this flow
-    PACHY_URI: pachd.pachyderm.svc.cluster.local:650
+    PACHY_URI: pachd.pachyderm.svc.cluster.local:30650
     PACHY_REPO: dogs-demo
     PROJECT_GIT_REPO: git@github.com:neuro-inc/mlops-demo-oss-dogs.git
     PROJECT_GIT_BRANCH: master
@@ -48,9 +48,8 @@ images:
 
 jobs:
   create_pipeline:
-    preset: cpu-small
+    preset: cpu-medium-p
     pass_config: True
-    detach: True
     image: $[[ images.train.ref ]]
     volumes:
       - secret:gh-rsa:/root/.ssh/id-rsa
@@ -65,6 +64,8 @@ jobs:
       PROJECT: /usr/project
       MLFLOW_STORAGE: ${{ params.mlflow_storage }}
       MLFLOW_URI: ${{ params.mlflow_uri }}
+      NEURO_TOKEN: secret:platform-token
+      TRAIN_IMAGE_REF: ${{ images.train.ref }}
     bash: |
       echo "IdentityFile ~/.ssh/id-rsa" > ~/.ssh/config
       ssh-keyscan github.com 2>/dev/null >> ~/.ssh/known_hosts
@@ -78,21 +79,22 @@ jobs:
       # Store Neuro-flow batch definition base-64 encoded
       BATCH_B64=$(cat ${PROJECT}/.neuro/training.yaml | base64 -w 0)
 
-      # Substitue Neuro-flow batch parameters from job ENV vars (!) and store them b64 encoded
+      # Substitue Neuro-flow batch parameters from job ENV vars and store them b64 encoded
       PARAMS_B64=$(cat ${PROJECT}/.neuro/training-batch-params.yaml | envsubst | base64 -w 0)
 
       # Create a copy of pipeline template
       cp $${PROJECT}/config/pipeline.json /tmp/pipeline.json
-      # Add neuro config token
-      sed -i -e s/##NEURO_PASSED_CONFIG##/${NEURO_PASSED_CONFIG}/ /tmp/pipeline.json
+      # Store platform token
+      sed -i -e s/##NEURO_TOKEN##/${NEURO_TOKEN}/ /tmp/pipeline.json
+      # and cluster name
+      NEURO_CLUSTER=$(neuro config show | grep "Current Cluster" | awk '{print $3}')
+      sed -i -e s/##NEURO_CLUSTER##/${NEURO_CLUSTER}/ /tmp/pipeline.json
       # Probagate batch definition and parameters into the Pachyderm pypeline definition
       sed -i -e s/##BATCH_B64##/${BATCH_B64}/ -e s/##PARAMS_B64##/${PARAMS_B64}/ /tmp/pipeline.json
 
       # Create pipeline
       pachctl list pipeline train >/dev/null && pachctl delete pipeline train >/dev/null
       pachctl create pipeline -f /tmp/pipeline.json
-      # to keep the token alive, will be fixed soon
-      sleep infinity
 
   prepare_remote_dataset:
     image: neuromation/neuro-extras:20.12.15
