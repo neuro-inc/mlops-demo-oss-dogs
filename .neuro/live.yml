@@ -243,9 +243,12 @@ jobs:
     detach: True
     browse: True
     params:
-      endpoint_url:
-      # https://demo-oss-dogs-test-inference--<user-name>.jobs.<cluster-name>.org.neu.ro/api/v1.0/predictions - if model deployed as platform job
-      # http://seldon.<cluster-name>.org.neu.ro/seldon/seldon/<model-name>-<model-stage>/api/v1.0/predictions -if model is deployed in Seldon
+      endpoint_url: 
+        default: ~
+        descr: |
+          Examples:
+          https://demo-oss-dogs-test-inference--<user-name>.jobs.<cluster-name>.org.neu.ro/api/v1.0/predictions - if model deployed as platform job
+          http://seldon.<cluster-name>.org.neu.ro/seldon/seldon/<model-name>-<model-stage>/api/v1.0/predictions -if model is deployed in Seldon
     volumes:
       - $[[ upload(volumes.src).ref_ro ]]
       - $[[ upload(volumes.config).ref_ro ]]

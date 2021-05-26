@@ -18,7 +18,7 @@ neuro login
 
 Build images used in the flow
 
-```
+```shell
 neuro-flow build ALL
 ```
 
@@ -70,6 +70,7 @@ Each update of the dataset creates a [Pachyderm](https://www.pachyderm.com/) com
   ```
 
 - You may follow the training process in [MLFlow](https://www.mlflow.org/) server WebUI using the provided link and in Pachyderm pipeline logs:
+  
   ```shell
   pachctl config update context default --pachd-address <Pachyderm server address>
   pachctl logs -f -p train 
@@ -81,7 +82,7 @@ Each update of the dataset creates a [Pachyderm](https://www.pachyderm.com/) com
   neuro-flow run deploy_inference_platform --param run_id XXXXXX  --param mlflow_storage $MLFLOW_STORAGE
   ```
 
-- Run deployed model's stress test via Locust (open up web UI), specifying model endpoint URI (check Locust job description in live.yaml for hints).
+- Run deployed model's stress test via Locust (open up web UI), specifying model endpoint URI. If the model deployed as platform job, you should use `https://demo-oss-dogs-test-inference--<username>.jobs.<cluster-name>.org.neu.ro/api/v1.0/predictions`, and `http://seldon.<cluster-name>.org.neu.ro/seldon/seldon/<model-name>-<model-stage>/api/v1.0/predictions` if model is deployed in Seldon.
 
   ```shell
   neuro-flow run locust --param endpoint_url <Address>
@@ -94,6 +95,7 @@ Each update of the dataset creates a [Pachyderm](https://www.pachyderm.com/) com
   ```
 
 ## Optional steps:
+
 - Add 10 more images to the dataset, label them and let Pahyderm retrain the model.
 
 ```shell
@@ -104,6 +106,7 @@ neuro-flow run label_studio
 - Deploy model to Seldon using our Kubernetes [MLFlow2Seldon operator](https://github.com/neuro-inc/mlops-k8s-mlflow2seldon) (assume operator is already deployed). In this case you also need the Seldon Core installation up and running in the cluster.
 
 ## Additional
+
 You might also run MLFlow server by yourself, but in this case, you will need to replace MLFlow server URI in env configuration.
 
 Create persistent disk for Postgresql
