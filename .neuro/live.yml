@@ -10,7 +10,7 @@ defaults:
     PACHY_URI: pachd.pachyderm.svc.cluster.local:30650
     PACHY_REPO: dogs-demo
     PROJECT_GIT_REPO: git@github.com:neuro-inc/mlops-demo-oss-dogs.git
-    PROJECT_GIT_BRANCH: master
+    PROJECT_GIT_BRANCH: ys/pachyderm_update
 
 volumes:
   remote_dataset:
@@ -48,9 +48,9 @@ images:
 
 jobs:
   create_pipeline:
-    preset: cpu-medium-p
-    pass_config: True
+    name: $[[ flow.title ]]-create-pipeline
     image: $[[ images.train.ref ]]
+    pass_config: True
     volumes:
       - secret:gh-rsa:/root/.ssh/id-rsa
     params:
@@ -95,8 +95,10 @@ jobs:
       # Create pipeline
       pachctl list pipeline train >/dev/null && pachctl delete pipeline train >/dev/null
       pachctl create pipeline -f /tmp/pipeline.json
+      echo "Pipeline created successfully."
 
   prepare_remote_dataset:
+    name: $[[ flow.title ]]-prepare-dataset
     image: neuromation/neuro-extras:20.12.15
     detach: False
     volumes:
@@ -114,6 +116,7 @@ jobs:
       fi
 
   extend_data:
+    name: $[[ flow.title ]]-extend-data
     image: $[[ images.train.ref ]]
     detach: False
     volumes:
@@ -147,15 +150,8 @@ jobs:
         --full_dataset ${{ volumes.remote_dataset.mount }}/images/Images/ \
         --nmber_of_imgs ${{ params.extend_dataset_by }} --skip_annotation_update
 
-      # Push dataset:
-      # Workaround for https://github.com/pachyderm/pachyderm/issues/4573 :
-      # put each file separately, not the whole directory:
-      pachctl start commit ${PACHY_REPO}@master
-      for img in `ls ${DATA_PATH}`; do
-        echo "Saving to pachyderm: ${DATA_PATH}/$img"
-        pachctl put file ${PACHY_REPO}@master:data/Images/$img --overwrite -f ${DATA_PATH}/$img | tee
-      done
-      pachctl finish commit ${PACHY_REPO}@master -m "Add `ls ${DATA_PATH} | wc -l` images"
+      # Push dataset
+      pachctl put file -o -r ${PACHY_REPO}@master:data/Images/ -f ${DATA_PATH}/ | tee
 
       # Validate dataset:
       pachctl list commit ${PACHY_REPO}@master
@@ -207,20 +203,11 @@ jobs:
         --ls_project_root ${LABEL_STUDIO_PROJECT} -- \
         start --use-gevent --no-browser ${LABEL_STUDIO_PROJECT} 
 
-      # Push labeling completions, dataset and annotation results to Pachyderm
-      # Workaround for https://github.com/pachyderm/pachyderm/issues/4573
-      # put each file separately, not the whole directory:
+      # Push labeling completions (label studio-specific files), images and annotation results
       pachctl start commit ${PACHY_REPO}@master
-      echo "Saving completions to pachyderm"
-      for compl in `ls ${COMPLETIONS}`; do
-        pachctl put file ${PACHY_REPO}@master:/ls-completions/$compl -o -f ${COMPLETIONS}/$compl | tee
-      done
-
-      for img in `ls ${DATA_PATH}`; do
-        echo "Saving to pachyderm: ${DATA_PATH}/$img"
-        pachctl put file ${PACHY_REPO}@master:data/Images/$img --overwrite -f ${DATA_PATH}/$img | tee
-      done
-      pachctl put file ${PACHY_REPO}@master:data/result.json --overwrite -f ${PROJECT}/data/result.json | tee
+      pachctl put file -o -r ${PACHY_REPO}@master:/ls-completions/ -f ${COMPLETIONS} | tee
+      pachctl put file -o -r ${PACHY_REPO}@master:data/Images/ -f ${DATA_PATH} | tee
+      pachctl put file -o    ${PACHY_REPO}@master:data/result.json -f ${PROJECT}/data/result.json | tee
       pachctl finish commit ${PACHY_REPO}@master -m "Commit annotations for `ls ${COMPLETIONS} | wc -l` images"
 
       # Validate dataset:
