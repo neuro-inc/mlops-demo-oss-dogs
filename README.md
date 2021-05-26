@@ -28,6 +28,12 @@ Create a secret with a private SSH key for GitHub repository access (pull/push a
 neuro secret add gh-rsa @~/.ssh/id_rsa
 ```
 
+Create a secret with your account token for training pipeline authentication
+
+```shell
+neuro secret add platform-token $(neuro config show-token)
+```
+
 Set up the variables provided by Neu.ro team needed to run the loads in your cluster.
 
 ```shell

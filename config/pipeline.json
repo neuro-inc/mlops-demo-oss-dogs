@@ -1,6 +1,6 @@
 {
   "pipeline": {
-    "name": "train"
+    "name": "##PIPELINE_NAME##"
   },
   "description": "Retrain the model after labeling data",
   "transform": {
@@ -8,10 +8,11 @@
     "cmd": [
       "bash",
       "-c",
-      "cd /tmp; mkdir -p .neuro; echo $BATCH_B64 | base64 -d > .neuro/training.yaml; echo $PARAMS_B64 | base64 -d > .neuro/params.yaml; neuro-flow bake training --meta-from-file .neuro/params.yaml --local-executor"
+      "neuro config login-with-token ${NEURO_TOKEN}; neuro config switch-cluster ${NEURO_CLUSTER}; cd /tmp; mkdir -p .neuro; echo $BATCH_B64 | base64 -d > .neuro/training.yaml; echo $PARAMS_B64 | base64 -d > .neuro/params.yaml; neuro-flow bake training --meta-from-file .neuro/params.yaml --local-executor"
     ],
     "env": {
-      "NEURO_PASSED_CONFIG": "##NEURO_PASSED_CONFIG##",
+      "NEURO_TOKEN": "##NEURO_TOKEN##",
+      "NEURO_CLUSTER": "##NEURO_CLUSTER##",
       "BATCH_B64": "##BATCH_B64##",
       "PARAMS_B64": "##PARAMS_B64##"
     }
