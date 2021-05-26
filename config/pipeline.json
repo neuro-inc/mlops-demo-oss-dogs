@@ -1,6 +1,6 @@
 {
   "pipeline": {
-    "name": "train"
+    "name": "##PIPELINE_NAME##"
   },
   "description": "Retrain the model after labeling data",
   "transform": {
