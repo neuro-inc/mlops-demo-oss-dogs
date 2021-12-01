@@ -19,6 +19,6 @@ RUN pip install --progress-bar=off -U --no-cache-dir -r requirements/python-base
 RUN ssh-keygen -f /id_rsa -t rsa -N neuromation -q
 
 # install pachyderm CLI
-RUN curl -o /tmp/pachctl.deb -L https://github.com/pachyderm/pachyderm/releases/download/v1.12.3/pachctl_1.12.3_amd64.deb \
+RUN curl -o /tmp/pachctl.deb -L https://github.com/pachyderm/pachyderm/releases/download/v2.0.2/pachctl_2.0.2_amd64.deb \
     && dpkg -i /tmp/pachctl.deb \
     && rm -f /tmp/pachctl.deb
