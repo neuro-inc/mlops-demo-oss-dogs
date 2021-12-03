@@ -157,6 +157,7 @@ jobs:
       # Push dataset
       pachctl put file -r ${PACHY_REPO}@master:data/Images/ -f ${DATA_PATH}/ | tee
       mkdir -p /tmp/completions
+      touch /tmp/completions/keep
       pachctl put file -r ${PACHY_REPO}@master:/ls-completions/ -f /tmp/completions | tee
 
       # Validate dataset:
@@ -166,7 +167,7 @@ jobs:
   label_studio:
     image: $[[ images.label_studio.ref ]]
     name: $[[ flow.title ]]-label-studio
-    http_port: 443
+    http_port: 8080
     http_auth: False
     life_span: 1d
     detach: False
@@ -205,10 +206,10 @@ jobs:
       pachctl get file ${PACHY_REPO}@master:/ls-completions/ -r -o ${COMPLETIONS} | tee
 
       echo "Starting label-studio"
-      python ${PROJECT}/label_studio/launch_ls.py \
+      python3 ${PROJECT}/label_studio/launch_ls.py \
         --project_root ${PROJECT} \
         --ls_project_root ${LABEL_STUDIO_PROJECT} -- \
-        start --use-gevent --no-browser ${LABEL_STUDIO_PROJECT} 
+        start --no-browser ${LABEL_STUDIO_PROJECT}
 
       # Push labeling completions (label studio-specific files), images and annotation results
       pachctl start commit ${PACHY_REPO}@master
