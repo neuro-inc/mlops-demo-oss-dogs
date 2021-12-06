@@ -17,7 +17,7 @@ params:
 tasks:
   - id: train
     image: $[[ params.train_image_ref ]]
-    preset: cpu-medium-p
+    preset: cpu-medium
     life_span: 10d
     volumes:
       - ${{ params.mlflow_storage }}:/usr/local/share/mlruns:rw

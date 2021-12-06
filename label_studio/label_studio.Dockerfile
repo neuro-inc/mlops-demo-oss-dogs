@@ -1,8 +1,8 @@
-FROM heartexlabs/label-studio:1.4.0
+FROM heartexlabs/label-studio:0.9.0
 
 # Install DVC and Git (needed for DVC)
-RUN apt update -y -qq && \
-    apt install -y -qq git rsync lsyncd procps curl unzip openssh-client python3
+RUN apt update -y -qq --allow-releaseinfo-change && \
+    apt install -y -qq git rsync lsyncd procps curl unzip openssh-client
 RUN pip install -U --no-cache-dir \
     dvc==1.10.1
 

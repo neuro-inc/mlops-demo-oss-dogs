@@ -156,9 +156,10 @@ jobs:
 
       # Push dataset
       pachctl put file -r ${PACHY_REPO}@master:data/Images/ -f ${DATA_PATH}/ | tee
-      mkdir -p /tmp/completions
-      touch /tmp/completions/keep
-      pachctl put file -r ${PACHY_REPO}@master:/ls-completions/ -f /tmp/completions | tee
+      mkdir -p /tmp/ls-completions
+      touch /tmp/ls-completions/test
+      pachctl put file -r ${PACHY_REPO}@master:/ls-completions/ -f /tmp/ls-completions | tee
+
 
       # Validate dataset:
       pachctl list commit ${PACHY_REPO}@master
@@ -167,7 +168,7 @@ jobs:
   label_studio:
     image: $[[ images.label_studio.ref ]]
     name: $[[ flow.title ]]-label-studio
-    http_port: 8080
+    http_port: 443
     http_auth: False
     life_span: 1d
     detach: False
@@ -192,30 +193,29 @@ jobs:
       # Pull dataset:
       pachctl get file ${PACHY_REPO}@master:/data/ -r -o ${PROJECT}/data/ | tee
 
-      export LABEL_STUDIO_LOCAL_FILES_SERVING_ENABLED=True
-      label-studio init ${LABEL_STUDIO_PROJECT} \
+      label-studio init \
         --label-config ${PROJECT}/label_studio/LabelConfig.xml \
-        --data-dir ${DATA_PATH} \
-        --username neuro \
-        --password neuro \
-        --host https://$(hostname).jobs.${NEURO_JOB_CLUSTER}.org.neu.ro \
+        --input-path ${DATA_PATH} \
+        --input-format image-dir \
+        --host $(hostname).jobs.${NEURO_JOB_CLUSTER}.org.neu.ro \
         --port 443 \
-        --agree-fix-sqlite
+        --allow-serving-local-files \
+        ${LABEL_STUDIO_PROJECT}
 
       # Pull completions for previously annotated images
       pachctl get file ${PACHY_REPO}@master:/ls-completions/ -r -o ${COMPLETIONS} | tee
 
       echo "Starting label-studio"
-      python3 ${PROJECT}/label_studio/launch_ls.py \
+      python ${PROJECT}/label_studio/launch_ls.py \
         --project_root ${PROJECT} \
         --ls_project_root ${LABEL_STUDIO_PROJECT} -- \
-        start --no-browser ${LABEL_STUDIO_PROJECT}
+        start --use-gevent --no-browser ${LABEL_STUDIO_PROJECT} 
 
       # Push labeling completions (label studio-specific files), images and annotation results
       pachctl start commit ${PACHY_REPO}@master
-      pachctl put file  -r ${PACHY_REPO}@master:/ls-completions/ -f ${COMPLETIONS} | tee
-      pachctl put file  -r ${PACHY_REPO}@master:data/Images/ -f ${DATA_PATH} | tee
-      pachctl put file     ${PACHY_REPO}@master:data/result.json -f ${PROJECT}/data/result.json | tee
+      pachctl put file -r ${PACHY_REPO}@master:/ls-completions/ -f ${COMPLETIONS} | tee
+      pachctl put file -r ${PACHY_REPO}@master:data/Images/ -f ${DATA_PATH} | tee
+      pachctl put file    ${PACHY_REPO}@master:data/result.json -f ${PROJECT}/data/result.json | tee
       pachctl finish commit ${PACHY_REPO}@master -m "Commit annotations for `ls ${COMPLETIONS} | wc -l` images"
 
       # Validate dataset:
@@ -288,7 +288,7 @@ jobs:
       # Init pachctl
       pachctl config update context default --pachd-address ${PACHY_URI}
       pachctl inspect repo ${PACHY_REPO} || pachctl create repo ${PACHY_REPO}
-      pachctl get file ${PACHY_REPO}@master:/data/Images -r -o ${PROJECT}/data/Images | tee
+      pachctl get file ${PACHY_REPO}@master:/data/Images -r ${PROJECT}/data/Images | tee
 
       jupyter notebook  \
         --no-browser \
