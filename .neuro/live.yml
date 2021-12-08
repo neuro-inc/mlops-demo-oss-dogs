@@ -193,23 +193,26 @@ jobs:
       # Pull dataset:
       pachctl get file ${PACHY_REPO}@master:/data/ -r -o ${PROJECT}/data/ | tee
 
-      label-studio init \
+      export LABEL_STUDIO_LOCAL_FILES_SERVING_ENABLED=True
+      label-studio init ${LABEL_STUDIO_PROJECT} \
         --label-config ${PROJECT}/label_studio/LabelConfig.xml \
-        --input-path ${DATA_PATH} \
-        --input-format image-dir \
-        --host $(hostname).jobs.${NEURO_JOB_CLUSTER}.org.neu.ro \
+        --data-dir ${DATA_PATH} \
+        --host https://$(hostname).jobs.${NEURO_JOB_CLUSTER}.org.neu.ro \
         --port 443 \
-        --allow-serving-local-files \
-        ${LABEL_STUDIO_PROJECT}
+        --username ls@neu.ro \
+        --password neuro \
+        --agree-fix-sqlite
+
 
       # Pull completions for previously annotated images
       pachctl get file ${PACHY_REPO}@master:/ls-completions/ -r -o ${COMPLETIONS} | tee
 
       echo "Starting label-studio"
-      python ${PROJECT}/label_studio/launch_ls.py \
+      sleep infinity
+      python3 ${PROJECT}/label_studio/launch_ls.py \
         --project_root ${PROJECT} \
         --ls_project_root ${LABEL_STUDIO_PROJECT} -- \
-        start --use-gevent --no-browser ${LABEL_STUDIO_PROJECT} 
+        start --no-browser ${LABEL_STUDIO_PROJECT}
 
       # Push labeling completions (label studio-specific files), images and annotation results
       pachctl start commit ${PACHY_REPO}@master
