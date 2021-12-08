@@ -4,7 +4,7 @@
   },
   "description": "Retrain the model after labeling data",
   "transform": {
-    "image": "neuromation/neuro-flow:21.10.0",
+    "image": "neuromation/neuro-flow:21.7.9",
     "cmd": [
       "bash",
       "-c",
