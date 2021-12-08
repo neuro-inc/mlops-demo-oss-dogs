@@ -28,10 +28,16 @@ Create a secret with a private SSH key for accessing the GitHub repository (pull
 neuro secret add gh-rsa @~/.ssh/id_rsa
 ```
 
-Create a secret with your account token for authenticating the training pipeline:
+Create a service account for authenticating the training pipeline:
 
 ```shell
-neuro secret add platform-token $(neuro config show-token)
+neuro service-account create --name mlsops-demo-oss-dogs
+```
+
+Take the full token from the command's output and store it in a secret:
+
+```shell
+neuro secret add platform-config FULL_TOKEN_FROM_OUTPUT
 ```
 
 Set up the variables needed to run the loads in your cluster that were provided by the Neu.ro team:

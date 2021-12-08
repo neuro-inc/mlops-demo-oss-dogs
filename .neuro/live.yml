@@ -50,7 +50,6 @@ jobs:
   create_pipeline:
     name: $[[ flow.title ]]-create-pipeline
     image: $[[ images.train.ref ]]
-    pass_config: True
     volumes:
       - secret:gh-rsa:/root/.ssh/id-rsa
     params:
@@ -67,7 +66,7 @@ jobs:
       PROJECT: /usr/project
       MLFLOW_STORAGE: ${{ params.mlflow_storage }}
       MLFLOW_URI: ${{ params.mlflow_uri }}
-      NEURO_TOKEN: secret:platform-token
+      NEURO_PASSED_CONFIG: secret:platform-config
       TRAIN_IMAGE_REF: ${{ images.train.ref }}
       PACHY_PIPELINE_NAME: ${{ params.pachy_pipeline_name }}
     bash: |
@@ -88,9 +87,7 @@ jobs:
 
       # Create a copy of pipeline template
       cp $${PROJECT}/config/pipeline.json /tmp/pipeline.json
-      # Store platform token and cluster name
-      NEURO_CLUSTER=$(neuro config show | grep "Current Cluster" | awk '{print $3}')
-      sed -i -e s/##NEURO_TOKEN##/${NEURO_TOKEN}/ -e s/##NEURO_CLUSTER##/${NEURO_CLUSTER}/ /tmp/pipeline.json
+      sed -i -e s/##NEURO_PASSED_CONFIG##/${NEURO_PASSED_CONFIG}/ /tmp/pipeline.json
       # Probagate batch definition and its parameters into the Pachyderm pypeline definition
       sed -i -e s/##BATCH_B64##/${BATCH_B64}/ -e s/##PARAMS_B64##/${PARAMS_B64}/ /tmp/pipeline.json
       # Set the pipeline name
