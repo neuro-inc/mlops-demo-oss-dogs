@@ -8,7 +8,7 @@
     "cmd": [
       "bash",
       "-c",
-      "cd /tmp; mkdir -p .neuro; echo $BATCH_B64 | base64 -d > .neuro/training.yaml; echo $PARAMS_B64 | base64 -d > .neuro/params.yaml; neuro-flow bake training --meta-from-file .neuro/params.yaml --local-executor"
+      "cd /tmp; mkdir -p .neuro; echo $BATCH_B64 | base64 -d > .neuro/training.yaml; echo $PARAMS_B64 | base64 -d > .neuro/params.yaml; neuro-flow --show-traceback bake training --meta-from-file .neuro/params.yaml --local-executor"
     ],
     "env": {
       "NEURO_PASSED_CONFIG": "##NEURO_PASSED_CONFIG##",
