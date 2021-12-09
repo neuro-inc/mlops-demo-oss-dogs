@@ -31,7 +31,7 @@ neuro secret add gh-rsa @~/.ssh/id_rsa
 Create a service account for authenticating the training pipeline:
 
 ```shell
-neuro service-account create --name mlsops-demo-oss-dogs
+neuro service-account create --name mlops-demo-oss-dogs
 ```
 
 Take the full token from the command's output and store it in a secret:
