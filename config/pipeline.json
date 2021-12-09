@@ -8,11 +8,12 @@
     "cmd": [
       "bash",
       "-c",
-      "cd /tmp; mkdir -p .neuro; echo $BATCH_B64 | base64 -d > .neuro/training.yaml; echo $PARAMS_B64 | base64 -d > .neuro/params.yaml; neuro-flow --show-traceback bake training --meta-from-file .neuro/params.yaml --local-executor"
+      "cd /tmp; mkdir -p .neuro; echo $PROJECT_B64 | base64 -d > .neuro/project.yml; echo $BATCH_B64 | base64 -d > .neuro/training.yaml; echo $PARAMS_B64 | base64 -d > .neuro/params.yaml; neuro-flow --show-traceback bake training --meta-from-file .neuro/params.yaml --local-executor"
     ],
     "env": {
       "NEURO_PASSED_CONFIG": "##NEURO_PASSED_CONFIG##",
       "BATCH_B64": "##BATCH_B64##",
+      "PROJECT_B64": "##PROJECT_B64##",
       "PARAMS_B64": "##PARAMS_B64##"
     }
   },

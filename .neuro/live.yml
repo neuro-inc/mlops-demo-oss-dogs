@@ -31,7 +31,7 @@ volumes:
 
 images:
   train:
-    ref: image:/alexeynaiden/$[[ flow.flow_id ]]/train:21.5.13-pachyderm
+    ref: image:/$[[ flow.flow_id ]]/train:21.5.13-pachyderm
     dockerfile: $[[ flow.workspace ]]/Dockerfile
     context: $[[ flow.workspace ]]/
     build_preset: cpu-medium
@@ -79,8 +79,9 @@ jobs:
       pachctl config set active-context default
       pachctl inspect repo ${PACHY_REPO} || pachctl create repo ${PACHY_REPO}
 
-      # Store Neuro-flow batch definition base-64 encoded
+      # Store Neuro-flow batch and project definition base-64 encoded
       BATCH_B64=$(cat ${PROJECT}/.neuro/training.yaml | base64 -w 0)
+      PROJECT_B64=$(cat ${PROJECT}/.neuro/project.yml | base64 -w 0)
 
       # Substitue Neuro-flow batch parameters from job ENV vars and store them b64 encoded
       PARAMS_B64=$(cat ${PROJECT}/.neuro/training-batch-params.yaml | envsubst | base64 -w 0)
@@ -88,8 +89,8 @@ jobs:
       # Create a copy of pipeline template
       cp $${PROJECT}/config/pipeline.json /tmp/pipeline.json
       sed -i -e s/##NEURO_PASSED_CONFIG##/${NEURO_PASSED_CONFIG}/ /tmp/pipeline.json
-      # Probagate batch definition and its parameters into the Pachyderm pypeline definition
-      sed -i -e s/##BATCH_B64##/${BATCH_B64}/ -e s/##PARAMS_B64##/${PARAMS_B64}/ /tmp/pipeline.json
+      # Probagate project and batch definition and its parameters into the Pachyderm pypeline definition
+      sed -i -e s/##PROJECT_B64##/${PROJECT_B64}/ -e s/##BATCH_B64##/${BATCH_B64}/ -e s/##PARAMS_B64##/${PARAMS_B64}/ /tmp/pipeline.json
       # Set the pipeline name
       sed -i -e s/##PIPELINE_NAME##/${PACHY_PIPELINE_NAME}/ /tmp/pipeline.json
 
