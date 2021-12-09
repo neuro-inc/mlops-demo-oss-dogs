@@ -40,6 +40,25 @@ Take the full token from the command's output and store it in a secret:
 neuro secret add platform-config FULL_TOKEN_FROM_OUTPUT
 ```
 
+Grant permissions for the new service account
+
+```shell
+export USER=<YOUR_USERNAME>
+export PROJECT=mlops-demo-oss-dogs
+export PREFIX="/${USER}/${PROJECT}/"
+export ACCOUNT=${USER}/service-accounts/${PROJECT}
+export ROLE=${USER}/projects/${PROJECT//-/_}
+
+neuro acl grant storage:${PREFIX} ${ROLE} write
+neuro acl grant job:/${ACCOUNT} ${ACCOUNT} manage
+neuro acl grant image:${PREFIX} ${ROLE} read 
+neuro acl grant secret:gh-rsa ${ROLE} read
+neuro acl grant role://${ROLE} ${ACCOUNT} read
+
+# temp workaround for neuro-flow bug
+neuro acl grant role://${USER}/projects ${ACCOUNT}  manage
+```
+
 Set up the variables needed to run the loads in your cluster that were provided by the Neu.ro team:
 
 ```shell
