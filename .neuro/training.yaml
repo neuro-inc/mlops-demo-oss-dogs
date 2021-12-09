@@ -21,7 +21,7 @@ tasks:
     life_span: 10d
     volumes:
       - ${{ params.mlflow_storage }}:/usr/local/share/mlruns:rw
-      - secret:gh-rsa:/root/.ssh/id-rsa
+      - secret:/$[[ project.owner ]]/gh-rsa:/root/.ssh/id-rsa
     env:
       EXPOSE_SSH: "yes"
       PYTHONPATH: /usr/project

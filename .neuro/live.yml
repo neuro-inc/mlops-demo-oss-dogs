@@ -31,17 +31,17 @@ volumes:
 
 images:
   train:
-    ref: image:/$[[ flow.flow_id ]]/train:21.5.13-pachyderm
+    ref: image:/$[[ project.owner ]]/$[[ flow.flow_id ]]/train:21.5.13-pachyderm
     dockerfile: $[[ flow.workspace ]]/Dockerfile
     context: $[[ flow.workspace ]]/
     build_preset: cpu-medium
   seldon:
-    ref: image:$[[ flow.flow_id ]]/seldon:20.12.16
+    ref: image:/$[[ project.owner ]]/$[[ flow.flow_id ]]/seldon:20.12.16
     dockerfile: $[[ flow.workspace ]]/seldon/seldon.Dockerfile
     context: $[[ flow.workspace ]]/
     build_preset: cpu-medium
   label_studio:
-    ref: image:$[[ flow.flow_id ]]/label_studio:21.1.18-pachyderm
+    ref: image:/$[[ project.owner ]]/$[[ flow.flow_id ]]/label_studio:21.1.18-pachyderm
     dockerfile: $[[ flow.workspace ]]/label_studio/label_studio.Dockerfile
     context: $[[ flow.workspace ]]/label_studio
     build_preset: cpu-medium
@@ -51,7 +51,7 @@ jobs:
     name: $[[ flow.title ]]-create-pipeline
     image: $[[ images.train.ref ]]
     volumes:
-      - secret:gh-rsa:/root/.ssh/id-rsa
+      - secret:/$[[ project.owner ]]/gh-rsa:/root/.ssh/id-rsa
     params:
       mlflow_storage:
         descr: Storage path, where MLFlow server stores trained model binaries
