@@ -188,7 +188,7 @@ jobs:
       export DATA_PATH=${PROJECT}/data/Images
       COMPLETIONS=${LABEL_STUDIO_PROJECT}/completions
       # Pull dataset:
-      pachctl get file ${PACHY_REPO}@master:/data/ -r -o ${PROJECT}/data/ | tee || echo "No completions yet"
+      pachctl get file ${PACHY_REPO}@master:/data/ -r -o ${PROJECT}/data/ | tee
 
       label-studio init \
         --label-config ${PROJECT}/label_studio/LabelConfig.xml \
@@ -200,7 +200,7 @@ jobs:
         ${LABEL_STUDIO_PROJECT}
 
       # Pull completions for previously annotated images
-      pachctl get file ${PACHY_REPO}@master:/ls-completions/ -r -o ${COMPLETIONS} | tee
+      pachctl get file ${PACHY_REPO}@master:/ls-completions/ -r -o ${COMPLETIONS} | tee || echo "No completions yet"
 
       echo "Starting label-studio"
       python ${PROJECT}/label_studio/launch_ls.py \
