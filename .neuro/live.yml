@@ -10,7 +10,7 @@ defaults:
     PACHY_URI: api.pachyderm.mlops.neu.ro:30650
     PACHY_REPO: dogs-demo
     PROJECT_GIT_REPO: git@github.com:neuro-inc/mlops-demo-oss-dogs.git
-    PROJECT_GIT_BRANCH: an/pachyderm-buckets-update
+    PROJECT_GIT_BRANCH: ${{ git.branch }}
 
 volumes:
   remote_dataset:
@@ -156,9 +156,6 @@ jobs:
 
       # Push dataset
       pachctl put file -r ${PACHY_REPO}@master:data/Images/ -f ${DATA_PATH}/ | tee
-      mkdir -p /tmp/ls-completions
-      touch /tmp/ls-completions/test
-      pachctl put file -r ${PACHY_REPO}@master:/ls-completions/ -f /tmp/ls-completions | tee
 
 
       # Validate dataset:
@@ -191,7 +188,7 @@ jobs:
       export DATA_PATH=${PROJECT}/data/Images
       COMPLETIONS=${LABEL_STUDIO_PROJECT}/completions
       # Pull dataset:
-      pachctl get file ${PACHY_REPO}@master:/data/ -r -o ${PROJECT}/data/ | tee
+      pachctl get file ${PACHY_REPO}@master:/data/ -r -o ${PROJECT}/data/ | tee || echo "No completions yet"
 
       label-studio init \
         --label-config ${PROJECT}/label_studio/LabelConfig.xml \
