@@ -16,6 +16,8 @@ To get access to the sandbox environment that contains all the components instal
 neuro login
 ```
 
+Edit `.neuro/project.yml` and set owner to your username and role to `<YOUR_USERNAME>/projects/mlops-demo-oss-dogs`.
+
 Build all images used in the flow:
 
 ```shell
