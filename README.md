@@ -58,6 +58,7 @@ neuro acl grant secret:gh-rsa ${ROLE} read
 neuro acl grant role://${ROLE} ${ACCOUNT} read
 
 # temp workaround for neuro-flow bug
+# https://github.com/neuro-inc/neuro-flow/issues/664
 neuro acl grant role://${USER}/projects ${ACCOUNT}  manage
 ```
 
