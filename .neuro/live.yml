@@ -14,18 +14,18 @@ defaults:
 
 volumes:
   remote_dataset:
-    remote: storage:$[[ flow.flow_id ]]/dataset
+    remote: storage:/$[[ project.owner ]]/$[[ flow.flow_id ]]/dataset
     mount: /dataset
   src:
-    remote: storage:$[[ flow.flow_id ]]/src
+    remote: storage:/$[[ project.owner ]]/$[[ flow.flow_id ]]/src
     mount: /usr/project/src
     local: src
   config:
-    remote: storage:$[[ flow.flow_id ]]/config
+    remote: storage:/$[[ project.owner ]]/$[[ flow.flow_id ]]/config
     mount: /usr/project/config
     local: config
   notebooks:
-    remote: storage:$[[ flow.flow_id ]]/notebooks
+    remote: storage:/$[[ project.owner ]]/$[[ flow.flow_id ]]/notebooks
     mount: /usr/project/notebooks
     local: notebooks
 
