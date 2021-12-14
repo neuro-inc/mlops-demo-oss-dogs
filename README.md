@@ -16,6 +16,8 @@ To get access to the sandbox environment that contains all the components instal
 neuro login
 ```
 
+Edit `.neuro/project.yml` and set owner to your username and role to `<YOUR_USERNAME>/projects/mlops-demo-oss-dogs`.
+
 Build all images used in the flow:
 
 ```shell
@@ -28,10 +30,36 @@ Create a secret with a private SSH key for accessing the GitHub repository (pull
 neuro secret add gh-rsa @~/.ssh/id_rsa
 ```
 
-Create a secret with your account token for authenticating the training pipeline:
+Create a service account for authenticating the training pipeline:
 
 ```shell
-neuro secret add platform-token $(neuro config show-token)
+neuro service-account create --name mlops-demo-oss-dogs
+```
+
+Take the full token from the command's output and store it in a secret:
+
+```shell
+neuro secret add platform-config FULL_TOKEN_FROM_OUTPUT
+```
+
+Grant permissions for the new service account
+
+```shell
+export USER=<YOUR_USERNAME>
+export PROJECT=mlops-demo-oss-dogs
+export PREFIX="/${USER}/${PROJECT}/"
+export ACCOUNT=${USER}/service-accounts/${PROJECT}
+export ROLE=${USER}/projects/${PROJECT//-/_}
+
+neuro acl grant storage:${PREFIX} ${ROLE} write
+neuro acl grant job:/${ACCOUNT} ${ACCOUNT} manage
+neuro acl grant image:${PREFIX} ${ROLE} read 
+neuro acl grant secret:gh-rsa ${ROLE} read
+neuro acl grant role://${ROLE} ${ACCOUNT} read
+
+# temp workaround for neuro-flow bug
+# https://github.com/neuro-inc/neuro-flow/issues/664
+neuro acl grant role://${USER}/projects ${ACCOUNT}  manage
 ```
 
 Set up the variables needed to run the loads in your cluster that were provided by the Neu.ro team:
