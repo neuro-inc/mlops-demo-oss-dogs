@@ -51,7 +51,7 @@ jobs:
     name: $[[ flow.title ]]-create-pipeline
     image: $[[ images.train.ref ]]
     volumes:
-      - secret:/$[[ project.owner ]]/gh-rsa:/root/.ssh/id-rsa
+      - secret:gh-rsa:/root/.ssh/id-rsa
     params:
       mlflow_storage:
         descr: Storage path, where MLFlow server stores trained model binaries

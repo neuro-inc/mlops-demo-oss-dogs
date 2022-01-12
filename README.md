@@ -46,10 +46,10 @@ Grant permissions for the new service account
 
 ```shell
 export USER=<YOUR_USERNAME>
-export PROJECT=mlops-demo-oss-dogs
+export PROJECT=mlops_demo_oss_dogs
 export PREFIX="/${USER}/${PROJECT}/"
 export ACCOUNT=${USER}/service-accounts/${PROJECT}
-export ROLE=${USER}/projects/${PROJECT//-/_}
+export ROLE=${USER}/projects/${PROJECT}
 
 neuro acl grant storage:${PREFIX} ${ROLE} write
 neuro acl grant job:/${ACCOUNT} ${ACCOUNT} manage
