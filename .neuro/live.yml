@@ -233,6 +233,20 @@ jobs:
     volumes:
       - ${{ params.mlflow_storage }}/0/${{ params.run_id }}/artifacts/model/data/model.h5:/storage/model.h5
 
+  inference_poc:
+    image: $[[ images.seldon.ref ]]
+    name: $[[ flow.title ]]-inference
+    preset: gpu-small
+    http_port: 5000
+    http_auth: False
+    life_span: 5h
+    detach: True
+    volumes:
+      - ${{ volumes.notebooks.remote }}/model.h5:/storage/model.h5
+  # curl -F binData=@data/dogs_imgs/Images/n02085936-Maltese_dog/n02085936_37.jpg https://demo-oss-dogs-inference--yevheniisemendiak.jobs.selectel.org.neu.ro/predict | jq
+  # curl -F binData=@data/dogs_imgs/Images/n02088094-Afghan_hound/n02088094_4114.jpg https://demo-oss-dogs-inference--yevheniisemendiak.jobs.selectel.org.neu.ro/predict | jq
+
+
   locust:
     image: locustio/locust:1.4.1
     name: $[[ flow.title ]]-locust
