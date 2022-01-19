@@ -58,8 +58,8 @@ jobs:
       mlflow_uri:
         descr: MLFlow server URI
       pachy_pipeline_name:
-        default: train
-        descr: MLFlow server URI
+        default: train-dogs
+        descr: Pachyderm pipeline name
     env:
       EXPOSE_SSH: "yes"
       PYTHONPATH: /usr/project
@@ -95,7 +95,7 @@ jobs:
       sed -i -e s/##PIPELINE_NAME##/${PACHY_PIPELINE_NAME}/ /tmp/pipeline.json
 
       # Create pipeline
-      pachctl list pipeline train >/dev/null && pachctl delete pipeline train >/dev/null
+      pachctl list pipeline ${PACHY_PIPELINE_NAME} >/dev/null && pachctl delete pipeline ${PACHY_PIPELINE_NAME} >/dev/null
       pachctl create pipeline -f /tmp/pipeline.json
       echo "Pipeline '${PACHY_PIPELINE_NAME}' created successfully."
 
