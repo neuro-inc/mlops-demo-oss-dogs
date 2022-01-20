@@ -3,7 +3,7 @@ import math
 from src.preprocessing import img_to_numpy
 from typing import List, Mapping
 from random import shuffle
-from keras.utils import Sequence
+from tensorflow.keras.utils import Sequence
 from urllib.parse import urlparse
 from config.preprocessing import INPUT_SIZE
 from config.model import BATCH_SIZE
