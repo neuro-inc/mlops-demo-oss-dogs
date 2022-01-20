@@ -297,6 +297,7 @@ jobs:
         descr: MLFlow run ID, which model should be deployed
       mlflow_storage:
         descr: Storage path, where MLFlow server stores model binaries
+        default: storage:${{ flow.flow_id }}/mlruns
     bash: |
       # Init pachctl
       pachctl config update context default --pachd-address ${PACHY_URI}
