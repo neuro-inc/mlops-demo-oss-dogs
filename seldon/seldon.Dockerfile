@@ -5,7 +5,9 @@ ENV MODEL_NAME="seldon_model" \
     PERSISTENCE="0"
 # Copying in source code
 COPY . /tmp/src
-RUN mv /tmp/src/seldon/* /tmp/src
+RUN mv /tmp/src/seldon/* /tmp/src && \
+    apt-get update -y -qq --allow-releaseinfo-change && \
+    apt-get install --reinstall build-essential libjpeg-dev zlib1g-dev -y
 # Assemble script sourced from builder image based on user input or image metadata.
 # If this file does not exist in the image, the build will fail.
 RUN /s2i/bin/assemble

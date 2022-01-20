@@ -1,12 +1,12 @@
-FROM neuromation/base:v1.7.8
+FROM ghcr.io/neuro-inc/base:v21.11.0-runtime
 
 # TODO: do not use /project dir since it persists and afterwards can't be used for git clone. use /tmp/project
-RUN mkdir /project
 WORKDIR /project
 
 COPY requirements requirements
 RUN export DEBIAN_FRONTEND=noninteractive && \
     apt-get -qq update && \
+    apt-get install --reinstall build-essential -y && \
     cat requirements/apt.txt | tr -d "\r" | xargs -I % apt-get -qq install --no-install-recommends % && \
     apt-get -qq clean && \
     apt-get autoremove && \

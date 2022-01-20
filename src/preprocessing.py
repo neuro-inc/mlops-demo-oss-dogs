@@ -7,7 +7,6 @@ from urllib.parse import urlparse
 from typing import Tuple, Union, List
 
 from keras.preprocessing import image
-from keras.applications import VGG16
 from keras.applications.vgg16 import preprocess_input
 from PIL import Image, ImageOps
 

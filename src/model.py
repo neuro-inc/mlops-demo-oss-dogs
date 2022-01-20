@@ -1,7 +1,7 @@
 from config.preprocessing import INPUT_SIZE
 from keras import models, layers, optimizers
 
-from keras.applications import VGG16
+from keras.applications.vgg16 import VGG16
 from config.model import INPUT_LAYER_SHAPE
 
 

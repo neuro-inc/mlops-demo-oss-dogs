@@ -47,7 +47,8 @@ Grant permissions for the new service account
 ```shell
 export USER=<YOUR_USERNAME>
 export PROJECT=mlops-demo-oss-dogs
-export PREFIX="/${USER}/${PROJECT}/"
+# TODO: line below should be propagated to the repository main branch!
+export PREFIX="/${USER}/${PROJECT//-/_}/"
 export ACCOUNT=${USER}/service-accounts/${PROJECT}
 export ROLE=${USER}/projects/${PROJECT//-/_}
 

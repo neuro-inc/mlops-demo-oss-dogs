@@ -31,12 +31,12 @@ volumes:
 
 images:
   train:
-    ref: image:/$[[ project.owner ]]/$[[ flow.flow_id ]]/train:21.5.13-pachyderm
+    ref: image:/$[[ project.owner ]]/$[[ flow.flow_id ]]/train:v22.1.1
     dockerfile: $[[ flow.workspace ]]/Dockerfile
     context: $[[ flow.workspace ]]/
     build_preset: cpu-medium
   seldon:
-    ref: image:/$[[ project.owner ]]/$[[ flow.flow_id ]]/seldon:20.12.16
+    ref: image:/$[[ project.owner ]]/$[[ flow.flow_id ]]/seldon:v22.1.2
     dockerfile: $[[ flow.workspace ]]/seldon/seldon.Dockerfile
     context: $[[ flow.workspace ]]/
     build_preset: cpu-medium
@@ -243,8 +243,12 @@ jobs:
     detach: True
     volumes:
       - ${{ volumes.notebooks.remote }}/model.h5:/storage/model.h5
-  # curl -F binData=@data/dogs_imgs/Images/n02085936-Maltese_dog/n02085936_37.jpg https://demo-oss-dogs-inference--yevheniisemendiak.jobs.selectel.org.neu.ro/predict | jq
-  # curl -F binData=@data/dogs_imgs/Images/n02088094-Afghan_hound/n02088094_4114.jpg https://demo-oss-dogs-inference--yevheniisemendiak.jobs.selectel.org.neu.ro/predict | jq
+  # curl \
+  #  -sF binData=@data/dogs_imgs/Images/n02085936-Maltese_dog/n02085936_37.jpg \
+  #  https://demo-oss-dogs-inference--yevheniisemendiak.jobs.selectel.org.neu.ro/predict | jq
+  # curl \
+  #  -sF binData=@data/dogs_imgs/Images/n02088094-Afghan_hound/n02088094_4114.jpg \
+  #  https://seldon.onprem-poc.org.neu.ro/seldon/seldon/dogs-afghan-maltese-staging/api/v1.0/predictions | jq
 
 
   locust:
@@ -297,7 +301,7 @@ jobs:
       # Init pachctl
       pachctl config update context default --pachd-address ${PACHY_URI}
       pachctl inspect repo ${PACHY_REPO} || pachctl create repo ${PACHY_REPO}
-      pachctl get file ${PACHY_REPO}@master:/data/Images -r ${PROJECT}/data/Images | tee
+      pachctl get file ${PACHY_REPO}@master:/data/Images -r -o ${PROJECT}/data/Images | tee
 
       jupyter notebook  \
         --no-browser \
