@@ -1,7 +1,8 @@
-from config.preprocessing import INPUT_SIZE
-from keras import models, layers, optimizers
-
+import tensorflow as tf
+from keras import models, layers
 from keras.applications.vgg16 import VGG16
+
+from config.preprocessing import INPUT_SIZE
 from config.model import INPUT_LAYER_SHAPE
 
 
@@ -16,7 +17,7 @@ def get_model() -> models.Model:
 
     # Compile model
     model.compile(
-        optimizer=optimizers.Adam(),
+        optimizer=tf.keras.optimizers.Adam(),
         loss="sparse_categorical_crossentropy",
         metrics=["acc"],
     )
