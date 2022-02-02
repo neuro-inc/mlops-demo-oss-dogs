@@ -1,5 +1,5 @@
 kind: live
-title: demo-oss-dogs
+title: dogs-classifier
 id: mlops_demo_oss_dogs
 
 defaults:
