@@ -1,4 +1,4 @@
-FROM heartexlabs/label-studio:0.9.0
+FROM heartexlabs/label-studio:v1.4.1
 
 # Install DVC and Git (needed for DVC)
 RUN apt update -y -qq --allow-releaseinfo-change && \

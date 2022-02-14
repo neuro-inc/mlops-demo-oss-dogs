@@ -127,6 +127,7 @@ jobs:
     env:
       PROJECT: /usr/project
       PYTHONPATH: /usr/project
+      PACHY_TOKEN: secret:pachyderm-token
     params:
       extend_dataset_by:
         default: "1"
@@ -140,6 +141,7 @@ jobs:
       # Init pachctl
       pachctl config update context default --pachd-address ${PACHY_URI}
       pachctl config set active-context default
+      echo "${PACHY_TOKEN}" | pachctl auth use-auth-token
       pachctl inspect repo ${PACHY_REPO}
 
       export DATA_PATH=${PROJECT}/data/Images
@@ -173,7 +175,9 @@ jobs:
     env:
       PROJECT: /usr/project
       LABEL_STUDIO_PROJECT: /label-studio-project
+      PACHY_TOKEN: secret:pachyderm-token
     bash: |
+      sleep infinity
       echo "Downloading base dataset"
       echo "IdentityFile ~/.ssh/id-rsa" > ~/.ssh/config
       ssh-keyscan github.com >> ~/.ssh/known_hosts
@@ -181,8 +185,9 @@ jobs:
 
       # Init pachctl
       pachctl config update context default --pachd-address ${PACHY_URI}
+      echo "${PACHY_TOKEN}" | pachctl auth use-auth-token
       pachctl inspect repo ${PACHY_REPO} || pachctl create repo ${PACHY_REPO}
-      
+
       export DATA_PATH=${PROJECT}/data/Images
       COMPLETIONS=${LABEL_STUDIO_PROJECT}/completions
       # Pull dataset:
