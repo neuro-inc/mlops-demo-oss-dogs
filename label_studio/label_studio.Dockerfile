@@ -6,6 +6,9 @@ RUN apt update -y -qq --allow-releaseinfo-change && \
 RUN pip install -U --no-cache-dir \
     dvc==1.10.1
 
+RUN pip install -U --no-cache-dir \
+    httpie
+
 # install pachyderm CLI
 RUN curl -o /tmp/pachctl.deb -L https://github.com/pachyderm/pachyderm/releases/download/v2.0.2/pachctl_2.0.2_amd64.deb \
     && dpkg -i /tmp/pachctl.deb \

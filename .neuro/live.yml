@@ -58,7 +58,7 @@ jobs:
       mlflow_uri:
         descr: MLFlow server URI
       pachy_pipeline_name:
-        default: train
+        default: train-dogs
         descr: MLFlow server URI
     env:
       EXPOSE_SSH: "yes"
@@ -69,6 +69,7 @@ jobs:
       NEURO_PASSED_CONFIG: secret:platform-config
       TRAIN_IMAGE_REF: ${{ images.train.ref }}
       PACHY_PIPELINE_NAME: ${{ params.pachy_pipeline_name }}
+      PACHY_TOKEN: secret:pachyderm-token
     bash: |
       echo "IdentityFile ~/.ssh/id-rsa" > ~/.ssh/config
       ssh-keyscan github.com 2>/dev/null >> ~/.ssh/known_hosts
@@ -77,6 +78,7 @@ jobs:
       # Init pachctl
       pachctl config update context default --pachd-address ${PACHY_URI}
       pachctl config set active-context default
+      echo "${PACHY_TOKEN}" | pachctl auth use-auth-token
       pachctl inspect repo ${PACHY_REPO} || pachctl create repo ${PACHY_REPO}
 
       # Store Neuro-flow batch and project definition base-64 encoded
@@ -95,7 +97,7 @@ jobs:
       sed -i -e s/##PIPELINE_NAME##/${PACHY_PIPELINE_NAME}/ /tmp/pipeline.json
 
       # Create pipeline
-      pachctl list pipeline train >/dev/null && pachctl delete pipeline train >/dev/null
+      pachctl list pipeline $PACHY_PIPELINE_NAME >/dev/null && pachctl delete pipeline $PACHY_PIPELINE_NAME >/dev/null
       pachctl create pipeline -f /tmp/pipeline.json
       echo "Pipeline '${PACHY_PIPELINE_NAME}' created successfully."
 
@@ -142,7 +144,6 @@ jobs:
       pachctl config update context default --pachd-address ${PACHY_URI}
       pachctl config set active-context default
       echo "${PACHY_TOKEN}" | pachctl auth use-auth-token
-      pachctl inspect repo ${PACHY_REPO}
 
       export DATA_PATH=${PROJECT}/data/Images
       pachctl get file ${PACHY_REPO}@master:/data/Images -r -o ${DATA_PATH} | tee || true # if head is empty
@@ -174,10 +175,10 @@ jobs:
       - secret:gh-rsa:/root/.ssh/id-rsa
     env:
       PROJECT: /usr/project
+      LABEL_STUDIO_LOCAL_FILES_SERVING_ENABLED: True
       LABEL_STUDIO_PROJECT: /label-studio-project
       PACHY_TOKEN: secret:pachyderm-token
     bash: |
-      sleep infinity
       echo "Downloading base dataset"
       echo "IdentityFile ~/.ssh/id-rsa" > ~/.ssh/config
       ssh-keyscan github.com >> ~/.ssh/known_hosts
@@ -186,30 +187,34 @@ jobs:
       # Init pachctl
       pachctl config update context default --pachd-address ${PACHY_URI}
       echo "${PACHY_TOKEN}" | pachctl auth use-auth-token
-      pachctl inspect repo ${PACHY_REPO} || pachctl create repo ${PACHY_REPO}
 
       export DATA_PATH=${PROJECT}/data/Images
+      export LABEL_STUDIO_LOCAL_FILES_DOCUMENT_ROOT=${PROJECT}/data/
       COMPLETIONS=${LABEL_STUDIO_PROJECT}/completions
       # Pull dataset:
       pachctl get file ${PACHY_REPO}@master:/data/ -r -o ${PROJECT}/data/ | tee
 
-      label-studio init \
-        --label-config ${PROJECT}/label_studio/LabelConfig.xml \
-        --input-path ${DATA_PATH} \
-        --input-format image-dir \
-        --host $(hostname).jobs.${NEURO_JOB_CLUSTER}.org.neu.ro \
-        --port 443 \
-        --allow-serving-local-files \
-        ${LABEL_STUDIO_PROJECT}
+      echo Initializing label studio
+      label-studio init dogs --username test@neu.ro --password 12345678 \
+              --user-token token12345  \
+              --label-config ${PROJECT}/label_studio/LabelConfig.xml
+
 
       # Pull completions for previously annotated images
       pachctl get file ${PACHY_REPO}@master:/ls-completions/ -r -o ${COMPLETIONS} | tee || echo "No completions yet"
 
       echo "Starting label-studio"
+      label-studio start dogs -p 443 &
+      sleep 10
+      http POST localhost:443/api/storages/localfiles Authorization:"Token token12345" project:=1 title="Pachyderm" path=/usr/project/data/Images/ use_blob_urls:=true
+      http POST localhost:443/api/storages/localfiles/1/sync Authorization:"Token token12345" project:=1
+
+      sleep infinity
+      # TODO Fix this
       python ${PROJECT}/label_studio/launch_ls.py \
         --project_root ${PROJECT} \
         --ls_project_root ${LABEL_STUDIO_PROJECT} -- \
-        start --use-gevent --no-browser ${LABEL_STUDIO_PROJECT} 
+        start --use-gevent --no-browser ${LABEL_STUDIO_PROJECT}
 
       # Push labeling completions (label studio-specific files), images and annotation results
       pachctl start commit ${PACHY_REPO}@master
