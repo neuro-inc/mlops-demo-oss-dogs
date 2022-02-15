@@ -113,13 +113,7 @@ def get_args() -> argparse.Namespace:
         "-r",
         "--project_root",
         type=Path,
-        help="Project root path (loaded from GH)",
-    )
-    parser.add_argument(
-        "-l",
-        "--ls_project_root",
-        type=Path,
-        help="Label studio project root path",
+        help="Project root path",
     )
 
     args = parser.parse_args()

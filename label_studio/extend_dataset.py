@@ -14,8 +14,10 @@ def check_non_negative(value):
 
 def check_directory_exists(value):
     path_value = Path(value)
-    if not path_value.exists() or not path_value.is_dir():
-        raise argparse.ArgumentTypeError(f"{value} does not exist or not a directory")
+    if not path_value.exists():
+        path_value.mkdir()
+    elif not path_value.is_dir():
+        raise argparse.ArgumentTypeError(f"{value} is not a directory")
     return path_value
 
 
