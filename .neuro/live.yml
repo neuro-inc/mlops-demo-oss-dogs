@@ -151,9 +151,8 @@ jobs:
       echo "Extending dataset"
       python ${PROJECT}/label_studio/extend_dataset.py \
         --cur_dataset ${DATA_PATH} \
-        --cur_dataset_descr ${PROJECT}/data/result.json \
         --full_dataset ${{ volumes.remote_dataset.mount }}/images/Images/ \
-        --nmber_of_imgs ${{ params.extend_dataset_by }} --skip_annotation_update
+        --nmber_of_imgs ${{ params.extend_dataset_by }}
 
       # Push dataset
       pachctl put file -r ${PACHY_REPO}@master:data/Images/ -f ${DATA_PATH}/ | tee
@@ -204,12 +203,6 @@ jobs:
       pachctl get file ${PACHY_REPO}@master:/ls-completions/ -r -o ${COMPLETIONS} | tee || echo "No completions yet"
 
       echo "Starting label-studio"
-      # label-studio start dogs -p 443 &
-      # sleep 10
-      # http POST localhost:443/api/storages/localfiles Authorization:"Token ${LS_TOKEN}" project:=1 title="Pachyderm" path=/usr/project/data/Images/ use_blob_urls:=true
-      # http POST localhost:443/api/storages/localfiles/1/sync Authorization:"Token ${LS_TOKEN}" project:=1
-
-      #sleep infinity
       python3 ${PROJECT}/label_studio/launch_ls.py \
         --project_root ${PROJECT} \
         --ls_project_root ${LABEL_STUDIO_PROJECT} -- \

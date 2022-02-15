@@ -1,63 +1,48 @@
 import argparse
 import shutil
-import json
 from pathlib import Path
 
 from config.model import FNAME_CLASS
 
 
-# Beware: the suffix depends on the Label Studio config
-IMG_RECORD_SUFFIX = "?d=%2Flabel-studio%2Fproject%2Fdata%2FImages"
-IMG_RECORD_PREFFIX = "/data/"
+def check_non_negative(value):
+    int_value = int(value)
+    if int_value < 0:
+        raise argparse.ArgumentTypeError(f"{value} is an invalid non-negative int value")
+    return int_value
+
+
+def check_directory_exists(value):
+    path_value = Path(value)
+    if not path_value.exists() or not path_value.is_dir():
+        raise argparse.ArgumentTypeError(f"{value} does not exist or not a directory")
+    return path_value
 
 
 def extend_dataset(args: argparse.Namespace) -> None:
     cur_data_root = Path(args.cur_dataset)
-    cur_dataset_descr = Path(args.cur_dataset_descr)
+    full_data_root = Path(args.full_dataset)
+    cur_dataset_description = Path(args.cur_dataset_descr)
 
     if not cur_data_root.exists():
         cur_data_root.mkdir(parents=True)
-    if not cur_dataset_descr.exists():
-        start_id = 1
-        cur_dataset_descr_d = []
-    else:
-        with cur_dataset_descr.open() as fd:
-            try:
-                cur_dataset_descr_d = json.load(fd)
-                assert (
-                    type(cur_dataset_descr_d) == list
-                ), "Dataset description should be a JSON list of dicts"
-                start_id = max([x["id"] for x in cur_dataset_descr_d]) + 1
-            except json.decoder.JSONDecodeError:
-                cur_dataset_descr_d = []
-                start_id = 1
 
+    # Images we already have
     cur_files = {x.name for x in cur_data_root.iterdir()}
+    # Folders with breeds of interest
+    breed_dirs = {breed_dir for breed_dir in full_data_root.iterdir() if breed_dir.name.split('-')[0] in FNAME_CLASS}
 
-    is_dir_needed = lambda x: x.name.split("-")[0] in FNAME_CLASS
-    breeds_dirs = filter(is_dir_needed, args.full_dataset.iterdir())
-    dataset_files = set()
-    for breed_dir in breeds_dirs:
-        dataset_files.update({x for x in breed_dir.iterdir()})
+    # Images in these folders except the ones we already have
+    available_breed_images = []
+    for breed_dir in breed_dirs:
+        available_breed_images.extend([x for x in breed_dir.iterdir() if x.name not in cur_files])
 
-    i = 0
-    for x in dataset_files:
-        if i >= args.nmber_of_imgs:
-            break
-        if x.name not in cur_files:
-            breed = [breed for id_, breed in FNAME_CLASS.items() if id_ in x.name][0]
-            shutil.copy(x, cur_data_root / x.name)
-            cur_dataset_descr_d.append(
-                {
-                    "image": f"{IMG_RECORD_PREFFIX}{x.name}{IMG_RECORD_SUFFIX}",
-                    "id": start_id + i,
-                    "choice": breed,
-                }
-            )
-            i += 1
-    if not args.skip_annotation_update:
-        with cur_dataset_descr.open("w") as fd:
-            json.dump(cur_dataset_descr_d, fd, indent=2, sort_keys=True)
+    # Select and copy new images
+    new_breed_images = available_breed_images[:args.nmber_of_imgs]
+    for image in new_breed_images:
+        shutil.copy(image, cur_data_root / image.name)
+
+    print(f"{len(new_breed_images)} images copied")
 
 
 def get_args() -> argparse.Namespace:
@@ -66,54 +51,25 @@ def get_args() -> argparse.Namespace:
         "-d",
         "--cur_dataset",
         required=True,
-        type=Path,
+        type=check_directory_exists,
         help="Path to the folder, where image binaries are located",
-    )
-    parser.add_argument(
-        "-i",
-        "--cur_dataset_descr",
-        required=True,
-        type=Path,
-        help="Path to the JSON dataset description (info) file",
     )
     parser.add_argument(
         "-f",
         "--full_dataset",
         required=True,
-        type=Path,
+        type=check_directory_exists,
         help="Path to full dataset, from where new images will be taken",
     )
     parser.add_argument(
         "-n",
         "--nmber_of_imgs",
         default=1,
-        type=int,
+        type=check_non_negative,
         help="How many new images to add from dataset into current data",
-    )
-    parser.add_argument(
-        "--skip_annotation_update",
-        default=False,
-        action="store_true",
     )
 
     args = parser.parse_args()
-    if not args.full_dataset.exists() or not args.full_dataset.is_dir():
-        raise ValueError(f"{args.full_dataset} does not exist, or not a directory!")
-    if args.nmber_of_imgs < 0:
-        raise ValueError(
-            "-n/--nmber_of_imgs parameter should be greater than 0, "
-            f"given {args.nmber_of_imgs}"
-        )
-
-    if args.cur_dataset.exists() and not args.cur_dataset.is_dir():
-        raise ValueError(f"{str(args.cur_dataset)} exists, but is not a directory.")
-    if (
-        not args.skip_annotation_update
-        and args.cur_dataset_descr.exists()
-        and not args.cur_dataset_descr.is_file()
-    ):
-        raise ValueError(f"{str(args.cur_dataset_descr)} exists, but is not a file.")
-
     return args
 
 
