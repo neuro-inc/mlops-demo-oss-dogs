@@ -199,21 +199,16 @@ jobs:
               --label-config ${PROJECT}/label_studio/LabelConfig.xml
 
 
-      # Pull completions for previously annotated images
-      # pachctl get file ${PACHY_REPO}@master:/ls-completions/ -r -o ${COMPLETIONS} | tee || echo "No completions yet"
-
       echo "Starting label-studio"
       python3 ${PROJECT}/label_studio/launch_ls.py \
         --project_root ${PROJECT} \
-        --ls_project_root ${LABEL_STUDIO_PROJECT} -- \
+        -- \
         start dogs --port 443 --no-browser
 
       # Push labeling completions (label studio-specific files), images and annotation results
       pachctl start commit ${PACHY_REPO}@master
-      # pachctl put file -r ${PACHY_REPO}@master:/ls-completions/ -f ${COMPLETIONS} | tee
       pachctl put file -r ${PACHY_REPO}@master:data/Images/ -f ${DATA_PATH} | tee
       pachctl put file    ${PACHY_REPO}@master:data/result.json -f ${PROJECT}/data/result.json | tee
-      pachctl put file    ${PACHY_REPO}@master:data/result-max.json -f ${PROJECT}/data/result-max.json | tee
       pachctl finish commit ${PACHY_REPO}@master -m "Commit annotations for `ls ${COMPLETIONS} | wc -l` images"
 
       # Validate dataset:

@@ -45,12 +45,17 @@ async def _run_label_studio(
                   },
                   headers=AUTH)
 
+    # existing_results_file = project_root / "data" / "result.json"
+    # # Append existing tasks from JSON
+    # requests.post(url=f"http://localhost:443/api/projects/1/import",
+    #               headers=AUTH,
+    #               data=existing_results_file.read_bytes())
+
     # Sync tasks from local storage
     requests.post(url=f"http://localhost:443/api/storages/localfiles/1/sync",
                   json={"project": 1},
                   headers=AUTH)
 
-    # TODO: Append existing tasks from JSON
 
     is_last_iteration = False
     while True:
@@ -87,17 +92,10 @@ def _all_tasks_finished() -> bool:
 
 
 def _save_labeling_results(project_root: Path) -> None:
-    response = requests.get(f"http://localhost:443/api/projects/1/export?exportType=JSON_MIN",
+    response = requests.get(f"http://localhost:443/api/projects/1/export?exportType=JSON",
                             headers=AUTH)
     results_file = project_root / "data" / "result.json"
     logging.info(f"Saving results to {results_file}")
-    with results_file.open("wb") as fd:
-        fd.write(response.content)
-
-    response = requests.get(f"http://localhost:443/api/projects/1/export?exportType=JSON",
-                            headers=AUTH)
-    results_file = project_root / "data" / "result-max.json"
-    logging.info(f"Saving full results to {results_file}")
     with results_file.open("wb") as fd:
         fd.write(response.content)
 
