@@ -22,7 +22,6 @@ def check_directory_exists(value):
 def extend_dataset(args: argparse.Namespace) -> None:
     cur_data_root = Path(args.cur_dataset)
     full_data_root = Path(args.full_dataset)
-    cur_dataset_description = Path(args.cur_dataset_descr)
 
     if not cur_data_root.exists():
         cur_data_root.mkdir(parents=True)
