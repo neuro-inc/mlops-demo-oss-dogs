@@ -29,10 +29,32 @@ def main(args: argparse.Namespace) -> None:
 
 
 async def _run_label_studio(
-    cmd: List[str], ls_project_root: Path, project_root: Path
+        cmd: List[str], ls_project_root: Path, project_root: Path
 ) -> None:
     # use start_new_session=True not to send KeyboardInterrupt to subprocess
+    print('starting ls...')
     ls_proc = await asyncio.create_subprocess_exec(*cmd, start_new_session=True)
+    # let label studio start
+    print('started ls, waiting 10 seconds')
+    await asyncio.sleep(10)
+    print('wait completed')
+    requests.post(url=f"http://localhost:443/api/storages/localfiles",
+                  json={
+                      "project": 1,
+                      "title": "Pachyderm",
+                      "path": "/usr/project/data/Images/",
+                      "use_blob_urls": True
+                  },
+                  headers={
+                      "Authorization": "Token token12356"
+                  })
+    requests.post(url=f"http://localhost:443/api/storages/localfiles/1/sync",
+                  json={
+                      "project": 1,
+                  },
+                  headers={
+                      "Authorization": "Token token12356"
+                  })
     is_last_iteration = False
     while True:
         try:
@@ -47,7 +69,7 @@ async def _run_label_studio(
                 _migrate_uploaded_completions(ls_project_root, project_root)
                 is_last_iteration = True
             else:
-                time.sleep(1)
+                await asyncio.sleep(1)
             if is_last_iteration:
                 break
         except KeyboardInterrupt:
@@ -135,7 +157,7 @@ def _migrate_uploaded_completions(ls_project_root: Path, project_root: Path) -> 
 
         with open(completion_p, "w") as completion_fd:
             json.dump(completion, completion_fd, indent=2)
-        logging.info(f"Migrated uploaded completion {str(completion_p), }")
+        logging.info(f"Migrated uploaded completion {str(completion_p),}")
 
 
 def get_args() -> argparse.Namespace:

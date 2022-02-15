@@ -178,6 +178,7 @@ jobs:
       LABEL_STUDIO_LOCAL_FILES_SERVING_ENABLED: True
       LABEL_STUDIO_PROJECT: /label-studio-project
       PACHY_TOKEN: secret:pachyderm-token
+      LS_TOKEN: token12356
     bash: |
       echo "Downloading base dataset"
       echo "IdentityFile ~/.ssh/id-rsa" > ~/.ssh/config
@@ -189,14 +190,13 @@ jobs:
       echo "${PACHY_TOKEN}" | pachctl auth use-auth-token
 
       export DATA_PATH=${PROJECT}/data/Images
-      export LABEL_STUDIO_LOCAL_FILES_DOCUMENT_ROOT=${PROJECT}/data/
       COMPLETIONS=${LABEL_STUDIO_PROJECT}/completions
       # Pull dataset:
       pachctl get file ${PACHY_REPO}@master:/data/ -r -o ${PROJECT}/data/ | tee
 
       echo Initializing label studio
       label-studio init dogs --username test@neu.ro --password 12345678 \
-              --user-token token12345  \
+              --user-token ${LS_TOKEN}  \
               --label-config ${PROJECT}/label_studio/LabelConfig.xml
 
 
@@ -204,17 +204,16 @@ jobs:
       pachctl get file ${PACHY_REPO}@master:/ls-completions/ -r -o ${COMPLETIONS} | tee || echo "No completions yet"
 
       echo "Starting label-studio"
-      label-studio start dogs -p 443 &
-      sleep 10
-      http POST localhost:443/api/storages/localfiles Authorization:"Token token12345" project:=1 title="Pachyderm" path=/usr/project/data/Images/ use_blob_urls:=true
-      http POST localhost:443/api/storages/localfiles/1/sync Authorization:"Token token12345" project:=1
+      # label-studio start dogs -p 443 &
+      # sleep 10
+      # http POST localhost:443/api/storages/localfiles Authorization:"Token ${LS_TOKEN}" project:=1 title="Pachyderm" path=/usr/project/data/Images/ use_blob_urls:=true
+      # http POST localhost:443/api/storages/localfiles/1/sync Authorization:"Token ${LS_TOKEN}" project:=1
 
-      sleep infinity
-      # TODO Fix this
-      python ${PROJECT}/label_studio/launch_ls.py \
+      #sleep infinity
+      python3 ${PROJECT}/label_studio/launch_ls.py \
         --project_root ${PROJECT} \
         --ls_project_root ${LABEL_STUDIO_PROJECT} -- \
-        start --use-gevent --no-browser ${LABEL_STUDIO_PROJECT}
+        start dogs --port 443 --no-browser
 
       # Push labeling completions (label studio-specific files), images and annotation results
       pachctl start commit ${PACHY_REPO}@master
