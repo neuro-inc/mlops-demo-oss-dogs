@@ -1,12 +1,11 @@
 import argparse
 import logging
-import json
-import shutil
 import asyncio
 import requests
-from urllib.parse import urlparse, quote, parse_qs
 from pathlib import Path
 from typing import List
+from label_studio_sdk.client import Client
+from label_studio_sdk.project import Project
 
 logging.basicConfig(level=logging.INFO)
 
@@ -45,16 +44,19 @@ async def _run_label_studio(
                   },
                   headers=AUTH)
 
-    # existing_results_file = project_root / "data" / "result.json"
-    # # Append existing tasks from JSON
+    existing_results_file = project_root / "data" / "result.json"
+    # Append existing tasks from JSON
+    ls_client = Client(url="http://localhost:443", api_key="token12356")
+    project = Project.get_from_id(client=ls_client, project_id=1)
+    project.import_tasks(tasks=existing_results_file.absolute())
     # requests.post(url=f"http://localhost:443/api/projects/1/import",
     #               headers=AUTH,
     #               data=existing_results_file.read_bytes())
 
     # Sync tasks from local storage
-    # requests.post(url=f"http://localhost:443/api/storages/localfiles/1/sync",
-    #               json={"project": 1},
-    #               headers=AUTH)
+    requests.post(url=f"http://localhost:443/api/storages/localfiles/1/sync",
+                  json={"project": 1},
+                  headers=AUTH)
 
 
     is_last_iteration = False
@@ -88,7 +90,7 @@ def _all_tasks_finished() -> bool:
                             }).json()
     num_tasks_with_annotations = response['num_tasks_with_annotations']
     task_number = response['task_number']
-    return False
+    # return False
     return num_tasks_with_annotations >= task_number
 
 

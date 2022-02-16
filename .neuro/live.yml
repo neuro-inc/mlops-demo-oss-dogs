@@ -188,6 +188,8 @@ jobs:
       pachctl config update context default --pachd-address ${PACHY_URI}
       echo "${PACHY_TOKEN}" | pachctl auth use-auth-token
 
+      pip install label-studio-sdk
+
       export DATA_PATH=${PROJECT}/data/Images
       COMPLETIONS=${LABEL_STUDIO_PROJECT}/completions
       # Pull dataset:
