@@ -88,6 +88,7 @@ def _all_tasks_finished() -> bool:
                             }).json()
     num_tasks_with_annotations = response['num_tasks_with_annotations']
     task_number = response['task_number']
+    return False
     return num_tasks_with_annotations >= task_number
 
 
