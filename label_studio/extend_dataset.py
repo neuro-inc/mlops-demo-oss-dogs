@@ -1,4 +1,5 @@
 import argparse
+import random
 import shutil
 from pathlib import Path
 
@@ -40,6 +41,7 @@ def extend_dataset(args: argparse.Namespace) -> None:
 
     # Select and copy new images
     new_breed_images = available_breed_images[:args.nmber_of_imgs]
+    random.shuffle(new_breed_images)
     for image in new_breed_images:
         shutil.copy(image, cur_data_root / image.name)
 
