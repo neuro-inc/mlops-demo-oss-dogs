@@ -91,7 +91,7 @@ async def _run_label_studio(
                 await ls_proc.wait()
                 is_last_iteration = True
             else:
-                await asyncio.sleep(1)
+                await asyncio.sleep(3)
             if is_last_iteration:
                 break
         except KeyboardInterrupt:
