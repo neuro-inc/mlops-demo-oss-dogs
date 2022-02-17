@@ -46,30 +46,31 @@ async def _run_label_studio(
     #               headers=AUTH)
 
     existing_results_file = project_root / "data" / "result.json"
+    existing_files = []
+    # Append existing tasks from JSON
+    ls_client = Client(url="http://localhost:443", api_key="token12356")
+    project = Project.get_from_id(client=ls_client, project_id=1)
+
     if existing_results_file.exists():
         # Get existing files
         existing_tasks = json.loads(existing_results_file.read_text())
         existing_files = [task['data']['image'].split('/')[-1] for task in existing_tasks]
-
-        # Append existing tasks from JSON
-        ls_client = Client(url="http://localhost:443", api_key="token12356")
-        project = Project.get_from_id(client=ls_client, project_id=1)
         project.import_tasks(tasks="/usr/project/data/result.json")
 
-        # Import new images
-        all_images_root = project_root / "data" / "Images"
-        new_tasks = []
-        for img in all_images_root.glob('*'):
-            if img.name in existing_files:
-                continue
-            new_task = {
-                'data': {
-                    'image': f"/data/local-files/?d={str(img)[1:]}"
-                }
+    # Import new images
+    all_images_root = project_root / "data" / "Images"
+    new_tasks = []
+    for img in all_images_root.glob('*'):
+        if img.name in existing_files:
+            continue
+        new_task = {
+            'data': {
+                'image': f"/data/local-files/?d={str(img)[1:]}"
             }
-            new_tasks.append(new_task)
-        print(f'new tasks: {new_tasks}')
-        project.import_tasks(tasks=new_tasks)
+        }
+        new_tasks.append(new_task)
+    print(f'new tasks: {new_tasks}')
+    project.import_tasks(tasks=new_tasks)
 
     # Sync tasks from local storage
     # requests.post(url=f"http://localhost:443/api/storages/localfiles/1/sync",
