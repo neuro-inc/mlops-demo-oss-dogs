@@ -36,14 +36,14 @@ async def _run_label_studio(
 
     logging.info("Creating local storage via Label Studio API")
     # Create local storage
-    # requests.post(url=f"http://localhost:443/api/storages/localfiles",
-    #               json={
-    #                   "project": 1,
-    #                   "title": "Pachyderm",
-    #                   "path": "/usr/project/data/Images/",
-    #                   "use_blob_urls": True
-    #               },
-    #               headers=AUTH)
+    requests.post(url=f"http://localhost:443/api/storages/localfiles",
+                  json={
+                      "project": 1,
+                      "title": "Pachyderm",
+                      "path": "/usr/project/data/Images/",
+                      "use_blob_urls": True
+                  },
+                  headers=AUTH)
 
     existing_results_file = project_root / "data" / "result.json"
     existing_files = []
