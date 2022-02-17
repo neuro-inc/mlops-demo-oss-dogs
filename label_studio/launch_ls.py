@@ -70,7 +70,8 @@ async def _run_label_studio(
         }
         new_tasks.append(new_task)
     print(f'new tasks: {new_tasks}')
-    project.import_tasks(tasks=new_tasks)
+    if len(new_tasks) > 0:
+        project.import_tasks(tasks=new_tasks)
 
     # Sync tasks from local storage
     # requests.post(url=f"http://localhost:443/api/storages/localfiles/1/sync",
