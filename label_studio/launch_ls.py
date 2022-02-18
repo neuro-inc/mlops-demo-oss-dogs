@@ -32,18 +32,21 @@ async def _run_label_studio(
     logging.info('Starting Label Studio...')
     # use start_new_session=True not to send KeyboardInterrupt to subprocess
     ls_proc = await asyncio.create_subprocess_exec(*cmd, start_new_session=True)
-    # await asyncio.sleep(10)
+    await asyncio.sleep(10)
 
-    # logging.info("Creating local storage via Label Studio API")
-    # # Create local storage
-    # requests.post(url=f"http://localhost:443/api/storages/localfiles",
-    #               json={
-    #                   "project": 1,
-    #                   "title": "Pachyderm",
-    #                   "path": "/usr/project/data/Images/",
-    #                   "use_blob_urls": True
-    #               },
-    #               headers=AUTH)
+    response = requests.get(url="http://localhost:443/api/storages/localfiles/1",
+                            headers=AUTH)
+    if response.status_code == 404:
+        logging.info("Creating local storage via Label Studio API")
+        # Create local storage
+        requests.post(url=f"http://localhost:443/api/storages/localfiles",
+                      json={
+                          "project": 1,
+                          "title": "Pachyderm",
+                          "path": "/usr/project/data/Images/",
+                          "use_blob_urls": True
+                      },
+                      headers=AUTH)
 
     # existing_results_file = project_root / "data" / "result.json"
     # existing_files = []
@@ -74,9 +77,9 @@ async def _run_label_studio(
     #     project.import_tasks(tasks=new_tasks)
 
     # Sync tasks from local storage
-    # requests.post(url=f"http://localhost:443/api/storages/localfiles/1/sync",
-    #               json={"project": 1},
-    #               headers=AUTH)
+    requests.post(url=f"http://localhost:443/api/storages/localfiles/1/sync",
+                  json={"project": 1},
+                  headers=AUTH)
 
     is_last_iteration = False
     while True:
