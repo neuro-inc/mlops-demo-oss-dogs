@@ -5,7 +5,7 @@ import os
 
 import requests
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 logging.basicConfig(level=logging.INFO)
 
@@ -21,35 +21,55 @@ def main(args: argparse.Namespace) -> None:
         _run_label_studio(
             cmd,
             project_root=args.project_root,
+            bucket_name=args.bucket,
+            region_name=args.region_name,
+            endpoint_url=args.s3_endpoint,
+            aws_access_key_id=args.aws_access_key_id,
+            aws_secret_access_key=args.aws_secret_access_key,
         )
     )
     return return_code
 
 
 async def _run_label_studio(
-        cmd: List[str], project_root: Path
+        cmd: List[str], project_root: Path,
+        bucket_name: Optional[str] = None,
+        region_name: Optional[str] = None,
+        endpoint_url: Optional[str] = None,
+        aws_access_key_id: Optional[str] = None,
+        aws_secret_access_key: Optional[str] = None,
 ) -> None:
     logging.info('Starting Label Studio...')
     # use start_new_session=True not to send KeyboardInterrupt to subprocess
     ls_proc = await asyncio.create_subprocess_exec(*cmd, start_new_session=True)
     await asyncio.sleep(10)
 
-    response = requests.get(url=f"{LS_API_URL}/storages/localfiles/1",
+    response = requests.get(url=f"{LS_API_URL}/storages/s3/1",
                             headers=AUTH)
     if response.status_code == 404:
-        logging.info("Creating local storage via Label Studio API")
+        logging.info("Creating S3 storage via Label Studio API")
         # Create local storage if it doesn't exist
-        requests.post(url=f"{LS_API_URL}/storages/localfiles",
-                      json={
-                          "project": 1,
-                          "title": "Pachyderm",
-                          "path": os.environ('DATA_PATH'),
-                          "use_blob_urls": True
-                      },
+        data = {
+            "project": 1,
+            "title": "S3",
+            "bucket": bucket_name,
+            "prefix": "images/",
+            "region_name": region_name,
+            "s3_endpoint": endpoint_url,
+            "aws_access_key_id": aws_access_key_id,
+            "aws_secret_access_key": aws_secret_access_key,
+            "presign_ttl": 60,
+            "recursive_scan": False,
+            "use_blob_urls": True
+        }
+        # logging.info("Data: %s", data)
+        requests.post(url=f"{LS_API_URL}/storages/s3",
+                      json=data,
                       headers=AUTH)
 
     # Sync tasks from local storage
-    requests.post(url=f"{LS_API_URL}/storages/localfiles/1/sync",
+    logging.info("Syncing tasks")
+    requests.post(url=f"{LS_API_URL}/storages/s3/1/sync",
                   json={"project": 1},
                   headers=AUTH)
 
@@ -82,7 +102,6 @@ def _all_tasks_finished() -> bool:
                             headers=AUTH).json()
     num_tasks_with_annotations = response['num_tasks_with_annotations']
     task_number = response['task_number']
-    # return False
     return num_tasks_with_annotations >= task_number
 
 
@@ -107,6 +126,31 @@ def get_args() -> argparse.Namespace:
         "--project_root",
         type=Path,
         help="Project root path",
+    )
+    parser.add_argument(
+        "--bucket",
+        type=str,
+        help="AWS S3 bucket name",
+    )
+    parser.add_argument(
+        "--region_name",
+        type=str,
+        help="AWS S3 region name",
+    )
+    parser.add_argument(
+        "--s3_endpoint",
+        type=str,
+        help="AWS S3 endpoint url",
+    )
+    parser.add_argument(
+        "--aws_access_key_id",
+        type=str,
+        help="AWS S3 access key ID",
+    )
+    parser.add_argument(
+        "--aws_secret_access_key",
+        type=str,
+        help="AWS S3 secret access key",
     )
 
     args = parser.parse_args()
