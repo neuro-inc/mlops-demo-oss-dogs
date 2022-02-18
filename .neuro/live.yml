@@ -9,7 +9,7 @@ defaults:
     # Those env vars will be assigned to every job in this flow
     PACHY_URI: secret:pachyderm-uri
     PACHY_REPO: dogs-demo
-    PROJECT_GIT_REPO: git@github.com:neuro-inc/mlops-demo-oss-dogs.git
+    PROJECT_GIT_REPO: git@github.com:andriihomiak/mlops-demo-oss-dogs.git
     PROJECT_GIT_BRANCH: ${{ git.branch }}
 
 volumes:
