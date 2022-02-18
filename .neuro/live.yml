@@ -195,10 +195,16 @@ jobs:
       # Pull dataset:
       pachctl get file ${PACHY_REPO}@master:/data/ -r -o ${PROJECT}/data/ | tee
 
-      echo Initializing label studio
-      label-studio init dogs --username test@neu.ro --password 12345678 \
-              --user-token ${LS_TOKEN}  \
-              --label-config ${PROJECT}/label_studio/LabelConfig.xml
+      if [[ -f "${PROJECT}/data//label_studio.sqlite3" ]];
+      then
+        echo Restoring existing label studio data
+        cp ${PROJECT}/data/label_studio.sqlite3 /label_studio/data/label_studio.sqlite3
+      else
+        echo Initializing label studio
+        label-studio init dogs --username test@neu.ro --password 12345678 \
+                --user-token ${LS_TOKEN}  \
+                --label-config ${PROJECT}/label_studio/LabelConfig.xml
+      fi
 
 
       echo "Starting label-studio"
@@ -211,6 +217,7 @@ jobs:
       pachctl start commit ${PACHY_REPO}@master
       pachctl put file -r ${PACHY_REPO}@master:data/Images/ -f ${DATA_PATH} | tee
       pachctl put file    ${PACHY_REPO}@master:data/result.json -f ${PROJECT}/data/result.json | tee
+      pachctl put file    ${PACHY_REPO}@master:data/label_studio.sqlite3 -f /label_studio/data/label_studio.sqlite3 | tee
       pachctl finish commit ${PACHY_REPO}@master -m "Commit annotations for `ls ${COMPLETIONS} | wc -l` images"
 
       # Validate dataset:
