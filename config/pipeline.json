@@ -22,7 +22,7 @@
   },
   "input": {
     "pfs": {
-      "repo": "dogs-demo",
+      "repo": "##PACHY_REPO##",
       "glob": "/data/result.json"
     }
   }

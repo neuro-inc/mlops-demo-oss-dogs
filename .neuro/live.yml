@@ -93,6 +93,8 @@ jobs:
       sed -i -e s/##PROJECT_B64##/${PROJECT_B64}/ -e s/##BATCH_B64##/${BATCH_B64}/ -e s/##PARAMS_B64##/${PARAMS_B64}/ /tmp/pipeline.json
       # Set the pipeline name
       sed -i -e s/##PIPELINE_NAME##/${PACHY_PIPELINE_NAME}/ /tmp/pipeline.json
+      # Set the input repository name
+      sed -i -e s/##PACHY_REPO##/${PACHY_REPO}/ /tmp/pipeline.json
 
       # Create pipeline
       pachctl list pipeline ${PACHY_PIPELINE_NAME} >/dev/null && pachctl delete pipeline ${PACHY_PIPELINE_NAME} >/dev/null

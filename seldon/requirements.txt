@@ -3,3 +3,4 @@ scikit-learn==1.0.1
 tensorflow-gpu==2.7.0
 keras==2.7.0
 pillow==8.4.0
+flatbuffers<2.0.0,>=1.12
