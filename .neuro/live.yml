@@ -58,7 +58,7 @@ jobs:
       mlflow_uri:
         descr: MLFlow server URI
       pachy_pipeline_name:
-        default: onprem-dogs
+        default: onprem-dogs-train
         descr: Pachyderm pipeline name
     env:
       EXPOSE_SSH: "yes"
