@@ -8,7 +8,7 @@ defaults:
   env:
     # Those env vars will be assigned to every job in this flow
     PACHY_URI: pachyderm.green-hgx-2.org.neu.ro:30650
-    PACHY_REPO: dogs-demo
+    PACHY_REPO: onprem-dogs
     PROJECT_GIT_REPO: git@github.com:neuro-inc/mlops-demo-oss-dogs.git
     PROJECT_GIT_BRANCH: ${{ git.branch }}
 
@@ -58,7 +58,7 @@ jobs:
       mlflow_uri:
         descr: MLFlow server URI
       pachy_pipeline_name:
-        default: train-dogs
+        default: onprem-dogs
         descr: Pachyderm pipeline name
     env:
       EXPOSE_SSH: "yes"
