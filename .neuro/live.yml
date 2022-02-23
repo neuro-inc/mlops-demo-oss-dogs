@@ -130,6 +130,8 @@ jobs:
       PROJECT: /usr/project
       PYTHONPATH: /usr/project
       PACHY_TOKEN: secret:pachyderm-token
+      NEURO_PASSED_CONFIG: secret:platform-config
+      BUCKET_NAME: blob:/andriikhomiak/mlops-oss-demo-dogs/images
     params:
       extend_dataset_by:
         default: "1"
@@ -145,8 +147,13 @@ jobs:
       pachctl config set active-context default
       echo "${PACHY_TOKEN}" | pachctl auth use-auth-token
 
-      export DATA_PATH=${PROJECT}/data/Images
-      pachctl get file ${PACHY_REPO}@master:/data/Images -r -o ${DATA_PATH} | tee || true # if head is empty
+      export DATA_PATH=${PROJECT}/data/images
+      
+      # pachctl get file ${PACHY_REPO}@master:/data/Images -r -o ${DATA_PATH} | tee || true # if head is empty
+      
+      mkdir -p $DATA_PATH
+      [ -z $(neuro blob ls ${BUCKET_NAME}) ] && echo "Bucket is empty" \
+        || neuro blob cp -r ${BUCKET_NAME} $(dirname ${DATA_PATH}) # download data if the bucket is not empty
 
       echo "Extending dataset"
       python ${PROJECT}/label_studio/extend_dataset.py \
@@ -155,12 +162,15 @@ jobs:
         --nmber_of_imgs ${{ params.extend_dataset_by }}
 
       # Push dataset
-      pachctl put file -r ${PACHY_REPO}@master:data/Images/ -f ${DATA_PATH}/ | tee
+      # pachctl put file -r ${PACHY_REPO}@master:data/Images/ -f ${DATA_PATH}/ | tee
+      # TODO: figure out proper way to copy /some/dir => blob:some/dir without dirname magic
+      neuro blob cp -r ${DATA_PATH} $(dirname ${BUCKET_NAME}) 
 
+      # sleep infinity
 
       # Validate dataset:
-      pachctl list commit ${PACHY_REPO}@master
-      echo "Total images: $(pachctl list file ${PACHY_REPO}@master:data/Images | grep 'file' | wc -l)"
+      # pachctl list commit ${PACHY_REPO}@master
+      echo "Total images: $(neuro blob ls -r ${BUCKET_NAME} | grep -oP '\w*\.\w+$' | wc -l)" # grep files only
 
   label_studio:
     image: $[[ images.label_studio.ref ]]

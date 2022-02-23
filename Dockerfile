@@ -1,8 +1,8 @@
-FROM neuromation/base:v1.7.8
+FROM ghcr.io/neuro-inc/base:v22.2.1-devel
 
 # TODO: do not use /project dir since it persists and afterwards can't be used for git clone. use /tmp/project
-RUN mkdir /project
-WORKDIR /project
+RUN mkdir -p /tmp/project
+WORKDIR /tmp/project
 
 COPY requirements requirements
 RUN export DEBIAN_FRONTEND=noninteractive && \
