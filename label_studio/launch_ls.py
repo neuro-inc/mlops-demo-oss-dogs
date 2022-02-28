@@ -1,16 +1,16 @@
 import argparse
-import json
 import logging
 import asyncio
+import os
+
 import requests
 from pathlib import Path
 from typing import List
-from label_studio_sdk.client import Client
-from label_studio_sdk.project import Project
 
 logging.basicConfig(level=logging.INFO)
 
-AUTH = {"Authorization": "Token token12356"}
+AUTH = {"Authorization": f"Token {os.environ.get('LS_TOKEN')}"}
+LS_API_URL = f"http://localhost:{os.environ.get('LS_PORT')}/api"
 
 
 def main(args: argparse.Namespace) -> None:
@@ -34,22 +34,22 @@ async def _run_label_studio(
     ls_proc = await asyncio.create_subprocess_exec(*cmd, start_new_session=True)
     await asyncio.sleep(10)
 
-    response = requests.get(url="http://localhost:443/api/storages/localfiles/1",
+    response = requests.get(url=f"{LS_API_URL}/storages/localfiles/1",
                             headers=AUTH)
     if response.status_code == 404:
         logging.info("Creating local storage via Label Studio API")
         # Create local storage if it doesn't exist
-        requests.post(url=f"http://localhost:443/api/storages/localfiles",
+        requests.post(url=f"{LS_API_URL}/storages/localfiles",
                       json={
                           "project": 1,
                           "title": "Pachyderm",
-                          "path": "/usr/project/data/Images/",
+                          "path": os.environ('DATA_PATH'),
                           "use_blob_urls": True
                       },
                       headers=AUTH)
 
     # Sync tasks from local storage
-    requests.post(url=f"http://localhost:443/api/storages/localfiles/1/sync",
+    requests.post(url=f"{LS_API_URL}/storages/localfiles/1/sync",
                   json={"project": 1},
                   headers=AUTH)
 
@@ -75,13 +75,11 @@ async def _run_label_studio(
 
 
 def _all_tasks_finished() -> bool:
-    response = requests.get(url=f"http://localhost:443/api/projects/1/",
+    response = requests.get(url=f"{LS_API_URL}/projects/1/",
                             json={
                                 "project": 1,
                             },
-                            headers={
-                                "Authorization": "Token token12356"
-                            }).json()
+                            headers=AUTH).json()
     num_tasks_with_annotations = response['num_tasks_with_annotations']
     task_number = response['task_number']
     # return False
@@ -89,13 +87,12 @@ def _all_tasks_finished() -> bool:
 
 
 def _save_labeling_results(project_root: Path) -> None:
-    response = requests.get(f"http://localhost:443/api/projects/1/export?exportType=JSON",
+    response = requests.get(f"{LS_API_URL}/projects/1/export?exportType=JSON",
                             headers=AUTH)
     results_file = project_root / "data" / "result.json"
     logging.info(f"Saving results to {results_file}")
     with results_file.open("wb") as fd:
         fd.write(response.content)
-
 
 
 def get_args() -> argparse.Namespace:

@@ -177,7 +177,8 @@ jobs:
       LABEL_STUDIO_LOCAL_FILES_SERVING_ENABLED: True
       LABEL_STUDIO_PROJECT: /label-studio-project
       PACHY_TOKEN: secret:pachyderm-token
-      LS_TOKEN: token12356
+      LS_TOKEN: secret:ls-token
+      LS_PORT: 443
     bash: |
       echo "Downloading base dataset"
       echo "IdentityFile ~/.ssh/id-rsa" > ~/.ssh/config
@@ -209,7 +210,7 @@ jobs:
       python3 ${PROJECT}/label_studio/launch_ls.py \
         --project_root ${PROJECT} \
         -- \
-        start dogs --port 443 --no-browser
+        start dogs --port ${LS_PORT} --no-browser
 
       # Push labeling completions (label studio-specific files), images and annotation results
       pachctl start commit ${PACHY_REPO}@master
