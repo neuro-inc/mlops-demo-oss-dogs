@@ -79,7 +79,6 @@ jobs:
       pachctl config update context default --pachd-address ${PACHY_URI}
       pachctl config set active-context default
       echo "${PACHY_TOKEN}" | pachctl auth use-auth-token
-      pachctl inspect repo ${PACHY_REPO} || pachctl create repo ${PACHY_REPO}
 
       # Store Neuro-flow batch and project definition base-64 encoded
       BATCH_B64=$(cat ${PROJECT}/.neuro/training.yaml | base64 -w 0)
@@ -287,7 +286,6 @@ jobs:
     bash: |
       # Init pachctl
       pachctl config update context default --pachd-address ${PACHY_URI}
-      pachctl inspect repo ${PACHY_REPO} || pachctl create repo ${PACHY_REPO}
       pachctl get file ${PACHY_REPO}@master:/data/Images -r ${PROJECT}/data/Images | tee
 
       jupyter notebook  \
