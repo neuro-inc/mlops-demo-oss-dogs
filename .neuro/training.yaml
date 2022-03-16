@@ -28,6 +28,7 @@ tasks:
       PROJECT: /usr/project
       PACHY_URI: ${{ params.pachy_uri }}
       PACHY_REPO: dogs-demo
+      PACHY_TOKEN: secret:pachyderm-token
       MLFLOW_TRACKING_URI: ${{ params.mlflow_uri }}
       PROJECT_GIT_REPO: ${{ params.project_git_repo }}
       PROJECT_GIT_BRANCH: ${{ params.project_git_branch }}
@@ -39,9 +40,10 @@ tasks:
         # Init pachctl
         pachctl config update context default --pachd-address ${PACHY_URI}
         pachctl config set active-context default
-        pachctl inspect repo ${PACHY_REPO} || pachctl create repo ${PACHY_REPO}
-        
-        # Pull dataset: 
+        echo "${PACHY_TOKEN}" | pachctl auth use-auth-token
+
+
+        # Pull dataset:
         pachctl get file ${PACHY_REPO}@master:/data/ -r -o ${PROJECT}/data/ | tee
         ls -R ${PROJECT}/data
 
