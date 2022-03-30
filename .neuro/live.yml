@@ -7,7 +7,7 @@ defaults:
   life_span: 1d
   env:
     # Those env vars will be assigned to every job in this flow
-    PACHY_URI: api.pachyderm.mlops.neu.ro:30650
+    PACHY_URI: pachyderm.green-hgx-2.org.neu.ro:30650
     PACHY_REPO: dogs-demo
     PROJECT_GIT_REPO: git@github.com:neuro-inc/mlops-demo-oss-dogs.git
     PROJECT_GIT_BRANCH: ${{ git.branch }}
@@ -79,7 +79,6 @@ jobs:
       pachctl config update context default --pachd-address ${PACHY_URI}
       pachctl config set active-context default
       echo "${PACHY_TOKEN}" | pachctl auth use-auth-token
-      pachctl inspect repo ${PACHY_REPO} || pachctl create repo ${PACHY_REPO}
 
       # Store Neuro-flow batch and project definition base-64 encoded
       BATCH_B64=$(cat ${PROJECT}/.neuro/training.yaml | base64 -w 0)
@@ -312,8 +311,6 @@ jobs:
     image: postgres:12.5
     name: $[[ flow.title ]]-postgres
     preset: cpu-small
-    http_port: 5432
-    http_auth: False
     life_span: 30d
     detach: True
     volumes:
