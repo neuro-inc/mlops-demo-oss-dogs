@@ -40,8 +40,8 @@ def extend_dataset(args: argparse.Namespace) -> None:
         available_breed_images.extend([x for x in breed_dir.iterdir() if x.name not in cur_files])
 
     # Select and copy new images
+    random.shuffle(available_breed_images)
     new_breed_images = available_breed_images[:args.nmber_of_imgs]
-    random.shuffle(new_breed_images)
     for image in new_breed_images:
         shutil.copy(image, cur_data_root / image.name)
 
