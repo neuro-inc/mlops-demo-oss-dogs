@@ -42,6 +42,12 @@ Take the full token from the command's output and store it in a secret:
 neuro secret add platform-config FULL_TOKEN_FROM_OUTPUT
 ```
 
+Create secret for Label Studio token:
+
+```shell
+neuro secret add ls-token token123456
+```
+
 Grant permissions for the new service account
 
 ```shell
@@ -55,6 +61,7 @@ neuro acl grant storage:${PREFIX} ${ROLE} write
 neuro acl grant job:/${ACCOUNT} ${ACCOUNT} manage
 neuro acl grant image:${PREFIX} ${ROLE} read 
 neuro acl grant secret:gh-rsa ${ROLE} read
+neuro acl grant secret:ls-token ${ROLE} read
 neuro acl grant role://${ROLE} ${ACCOUNT} read
 
 # temp workaround for neuro-flow bug

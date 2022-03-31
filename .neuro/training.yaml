@@ -31,6 +31,7 @@ tasks:
       MLFLOW_TRACKING_URI: ${{ params.mlflow_uri }}
       PROJECT_GIT_REPO: ${{ params.project_git_repo }}
       PROJECT_GIT_BRANCH: ${{ params.project_git_branch }}
+      PACHY_TOKEN: secret:pachyderm-token
     bash: |
         echo "IdentityFile ~/.ssh/id-rsa" > ~/.ssh/config
         ssh-keyscan github.com >> ~/.ssh/known_hosts
@@ -40,8 +41,7 @@ tasks:
         pachctl config update context default --pachd-address ${PACHY_URI}
         pachctl config set active-context default
 
-
-        # Pull dataset:
+        # Pull dataset: 
         pachctl get file ${PACHY_REPO}@master:/data/ -r -o ${PROJECT}/data/ | tee
         ls -R ${PROJECT}/data
 
