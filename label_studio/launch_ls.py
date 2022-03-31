@@ -39,15 +39,21 @@ async def _run_label_studio(
         aws_access_key_id: Optional[str] = None,
         aws_secret_access_key: Optional[str] = None,
 ) -> None:
+    use_s3 = all({i is not None for i in (bucket_name, region_name, endpoint_url, aws_access_key_id, aws_secret_access_key)})
+    use_local = all({i is None for i in (bucket_name, region_name, endpoint_url, aws_access_key_id, aws_secret_access_key)})
+    if not use_local and not use_s3:
+        raise ValueError("Invalid combination of S3 arguments passed")
+    storage_type = "S3" if use_s3 else "local"
+
     logging.info('Starting Label Studio...')
     # use start_new_session=True not to send KeyboardInterrupt to subprocess
     ls_proc = await asyncio.create_subprocess_exec(*cmd, start_new_session=True)
     await asyncio.sleep(10)
 
-    response = requests.get(url=f"{LS_API_URL}/storages/s3/1",
+    response = requests.get(url=f"{LS_API_URL}/storages/{storage_type}/1",
                             headers=AUTH)
     if response.status_code == 404:
-        logging.info("Creating S3 storage via Label Studio API")
+        logging.info(f"Creating {storage_type} storage via Label Studio API")
         # Create local storage if it doesn't exist
         data = {
             "project": 1,
@@ -62,14 +68,13 @@ async def _run_label_studio(
             "recursive_scan": False,
             "use_blob_urls": True
         }
-        # logging.info("Data: %s", data)
-        requests.post(url=f"{LS_API_URL}/storages/s3",
+        requests.post(url=f"{LS_API_URL}/storages/{storage_type}",
                       json=data,
                       headers=AUTH)
 
     # Sync tasks from local storage
     logging.info("Syncing tasks")
-    requests.post(url=f"{LS_API_URL}/storages/s3/1/sync",
+    requests.post(url=f"{LS_API_URL}/storages/{storage_type}/1/sync",
                   json={"project": 1},
                   headers=AUTH)
 
