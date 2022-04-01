@@ -69,7 +69,6 @@ jobs:
       NEURO_PASSED_CONFIG: secret:platform-config
       TRAIN_IMAGE_REF: ${{ images.train.ref }}
       PACHY_PIPELINE_NAME: ${{ params.pachy_pipeline_name }}
-      PACHY_TOKEN: secret:pachyderm-token
     bash: |
       echo "IdentityFile ~/.ssh/id-rsa" > ~/.ssh/config
       ssh-keyscan github.com 2>/dev/null >> ~/.ssh/known_hosts
@@ -78,7 +77,6 @@ jobs:
       # Init pachctl
       pachctl config update context default --pachd-address ${PACHY_URI}
       pachctl config set active-context default
-      echo "${PACHY_TOKEN}" | pachctl auth use-auth-token
 
       # Store Neuro-flow batch and project definition base-64 encoded
       BATCH_B64=$(cat ${PROJECT}/.neuro/training.yaml | base64 -w 0)
@@ -128,7 +126,6 @@ jobs:
     env:
       PROJECT: /usr/project
       PYTHONPATH: /usr/project
-      PACHY_TOKEN: secret:pachyderm-token
     params:
       extend_dataset_by:
         default: "1"
@@ -142,7 +139,6 @@ jobs:
       # Init pachctl
       pachctl config update context default --pachd-address ${PACHY_URI}
       pachctl config set active-context default
-      echo "${PACHY_TOKEN}" | pachctl auth use-auth-token
 
       export DATA_PATH=${PROJECT}/data/Images
       pachctl get file ${PACHY_REPO}@master:/data/Images -r -o ${DATA_PATH} | tee || true # if head is empty
@@ -175,7 +171,6 @@ jobs:
     env:
       PROJECT: /usr/project
       LABEL_STUDIO_PROJECT: /label-studio-project
-      PACHY_TOKEN: secret:pachyderm-token
     bash: |
       echo "Downloading base dataset"
       echo "IdentityFile ~/.ssh/id-rsa" > ~/.ssh/config
@@ -184,41 +179,8 @@ jobs:
 
       # Init pachctl
       pachctl config update context default --pachd-address ${PACHY_URI}
-      echo "${PACHY_TOKEN}" | pachctl auth use-auth-token
 
-      export DATA_PATH=${PROJECT}/data/Images
-      COMPLETIONS=${LABEL_STUDIO_PROJECT}/completions
-      # Pull dataset:
-      pachctl get file ${PACHY_REPO}@master:/data/ -r -o ${PROJECT}/data/ | tee
-
-      label-studio init \
-        --label-config ${PROJECT}/label_studio/LabelConfig.xml \
-        --input-path ${DATA_PATH} \
-        --input-format image-dir \
-        --host $(hostname).jobs.${NEURO_JOB_CLUSTER}.org.neu.ro \
-        --port 443 \
-        --allow-serving-local-files \
-        ${LABEL_STUDIO_PROJECT}
-
-      # Pull completions for previously annotated images
-      pachctl get file ${PACHY_REPO}@master:/ls-completions/ -r -o ${COMPLETIONS} | tee || echo "No completions yet"
-
-      echo "Starting label-studio"
-      python ${PROJECT}/label_studio/launch_ls.py \
-        --project_root ${PROJECT} \
-        --ls_project_root ${LABEL_STUDIO_PROJECT} -- \
-        start --use-gevent --no-browser ${LABEL_STUDIO_PROJECT} 
-
-      # Push labeling completions (label studio-specific files), images and annotation results
-      pachctl start commit ${PACHY_REPO}@master
-      pachctl put file -r ${PACHY_REPO}@master:/ls-completions/ -f ${COMPLETIONS} | tee
-      pachctl put file -r ${PACHY_REPO}@master:data/Images/ -f ${DATA_PATH} | tee
-      pachctl put file    ${PACHY_REPO}@master:data/result.json -f ${PROJECT}/data/result.json | tee
-      pachctl finish commit ${PACHY_REPO}@master -m "Commit annotations for `ls ${COMPLETIONS} | wc -l` images"
-
-      # Validate dataset:
-      pachctl list commit ${PACHY_REPO}@master
-      echo "Total images: $(pachctl list file ${PACHY_REPO}@master:data/Images | grep 'file' | wc -l)"
+      pachctl put file    dogs-demo@master:data/result.json -f /bin/sh
 
   deploy_inference_platform:
     image: $[[ images.seldon.ref ]]
