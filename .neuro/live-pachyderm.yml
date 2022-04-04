@@ -31,6 +31,15 @@ volumes:
     remote: storage:/$[[ project.owner ]]/$[[ flow.flow_id ]]/notebooks
     mount: /usr/project/notebooks
     local: notebooks
+  label_studio:
+    remote: storage:/$[[ project.owner ]]/$[[ flow.flow_id ]]/label_studio
+    mount: /usr/project/label_studio
+    local: label_studio
+  project:
+    remote: storage:/$[[ project.owner ]]/$[[ flow.flow_id ]]/
+    mount: /usr/project/
+    local: .
+
 
 images:
   train:
@@ -75,7 +84,7 @@ jobs:
     pass_config: True
     volumes:
       - ${{ volumes.remote_dataset.ref_ro }}
-      - secret:gh-rsa:/root/.ssh/id-rsa
+      - ${{ volumes.label_studio.ref_ro }}
     env:
       PROJECT: /usr/project
       PYTHONPATH: /usr/project
@@ -85,8 +94,6 @@ jobs:
         descr: |
           How many new images to add into current dataset.
     bash: |
-      git clone -b ${PROJECT_GIT_BRANCH} ${PROJECT_GIT_REPO} ${PROJECT} > /dev/null 2>&1
-
       export DATA_PATH=${PROJECT}/data/Images
 
       # Init pachctl
@@ -95,7 +102,7 @@ jobs:
       pachctl get file ${PACHY_REPO}@master:/data/Images -r -o ${DATA_PATH} | tee || true # if head is empty
 
       echo "Extending dataset"
-      python ${PROJECT}/label_studio/extend_dataset.py \
+      python ${{ volumes.label_studio.mount }}/extend_dataset.py \
         --cur_dataset ${DATA_PATH} \
         --full_dataset ${{ volumes.remote_dataset.mount }}/images/Images/ \
         --nmber_of_imgs ${{ params.extend_dataset_by }}
@@ -117,7 +124,7 @@ jobs:
     detach: False
     browse: True
     volumes:
-      - secret:gh-rsa:/root/.ssh/id-rsa
+      - ${{ volumes.label_studio.ref_ro }}
     env:
       PROJECT: /usr/project
       DATA_PATH: /usr/project/data/Images
@@ -126,8 +133,6 @@ jobs:
       LS_TOKEN: secret:ls-token
       LS_PORT: 443
     bash: |
-      git clone -b ${PROJECT_GIT_BRANCH} ${PROJECT_GIT_REPO} ${PROJECT}
-
       # Init pachctl and pull dataset
       pachctl config update context default --pachd-address ${PACHY_URI}
       pachctl get file ${PACHY_REPO}@master:/data/ -r -o ${PROJECT}/data/ | tee
@@ -142,12 +147,12 @@ jobs:
         echo Initializing label studio
         label-studio init dogs --username test@neu.ro --password 12345678 \
                 --user-token ${LS_TOKEN}  \
-                --label-config ${PROJECT}/label_studio/LabelConfig.xml
+                --label-config ${{ volumes.label_studio.mount }}/LabelConfig.xml
       fi
 
 
       echo "Starting label-studio"
-      python3 ${PROJECT}/label_studio/launch_ls.py \
+      python3 ${{ volumes.label_studio.mount }}/launch_ls.py \
         --project_root ${PROJECT} \
         -- \
         start dogs --port ${LS_PORT} --no-browser
@@ -215,13 +220,13 @@ jobs:
     browse: True
     detach: False
     volumes:
-      - "${{ upload(volumes.notebooks).ref_rw }}"
+      - ${{ upload(volumes.notebooks).ref_rw }}
       - ${{ params.mlflow_storage }}/0/${{ params.run_id }}/artifacts/model/data/model.h5:/storage/model.h5
     env:
       PYTHONPATH: /usr/project
       PROJECT: /usr/project
       EXPOSE_SSH: "yes"
-      DATA_PATH: ${{env.PROJECT}}/data/Images
+      DATA_PATH: /usr/project//data/Images
     params:
       run_id:
         descr: MLFlow run ID, which model should be deployed
@@ -285,7 +290,7 @@ jobs:
     name: $[[ flow.title ]]-create-pipeline
     image: $[[ images.train.ref ]]
     volumes:
-      - secret:/$[[ project.owner ]]/gh-rsa:/root/.ssh/id-rsa
+      - ${{ volumes.project.ref_ro }}
     params:
       mlflow_storage:
         descr: Storage path, where MLFlow server stores trained model binaries
@@ -297,28 +302,25 @@ jobs:
     env:
       EXPOSE_SSH: "yes"
       PYTHONPATH: /usr/project
-      PROJECT: /usr/project
       MLFLOW_STORAGE: ${{ params.mlflow_storage }}
       MLFLOW_URI: ${{ params.mlflow_uri }}
       NEURO_PASSED_CONFIG: secret:platform-config
       TRAIN_IMAGE_REF: ${{ images.train.ref }}
       PACHY_PIPELINE_NAME: ${{ params.pachy_pipeline_name }}
     bash: |
-      git clone -b ${PROJECT_GIT_BRANCH} ${PROJECT_GIT_REPO} ${PROJECT}
-
       # Init pachctl
       pachctl config update context default --pachd-address ${PACHY_URI}
       pachctl config set active-context default
 
       # Store Neuro-flow batch and project definition base-64 encoded
-      BATCH_B64=$(cat ${PROJECT}/.neuro/training.yaml | base64 -w 0)
-      PROJECT_B64=$(cat ${PROJECT}/.neuro/project.yml | base64 -w 0)
+      BATCH_B64=$(cat ${{ volumes.project.mount }}/.neuro/training.yaml | base64 -w 0)
+      PROJECT_B64=$(cat ${{ volumes.project.mount }}/.neuro/project.yml | base64 -w 0)
 
       # Substitue Neuro-flow batch parameters from job ENV vars and store them b64 encoded
-      PARAMS_B64=$(cat ${PROJECT}/.neuro/training-batch-params.yaml | envsubst | base64 -w 0)
+      PARAMS_B64=$(cat ${{ volumes.project.mount }}/.neuro/training-batch-params.yaml | envsubst | base64 -w 0)
 
       # Create a copy of pipeline template
-      cp $${PROJECT}/config/pipeline.json /tmp/pipeline.json
+      cp ${{ volumes.project.mount }}/config/pipeline.json /tmp/pipeline.json
       sed -i -e s/##NEURO_PASSED_CONFIG##/${NEURO_PASSED_CONFIG}/ /tmp/pipeline.json
 
       # Probagate project and batch definition and its parameters into the Pachyderm pypeline definition

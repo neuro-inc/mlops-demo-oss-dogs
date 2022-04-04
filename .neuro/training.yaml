@@ -11,8 +11,6 @@ params:
   mlflow_storage: ~
   mlflow_uri: ~
   pachy_uri: ~
-  project_git_repo: ~
-  project_git_branch: ~
 
 tasks:
   - id: train
