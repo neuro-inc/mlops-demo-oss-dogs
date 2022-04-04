@@ -6,6 +6,8 @@ The project description is here.
 
 Sign up at [app.neu.ro](https://app.neu.ro) and setup your local machine according to [these instructions](https://docs.neu.ro/getting-started#installing-the-cli).
 
+This guide assumes that you already have a deployed Pachyderm cluster that's ready to create and run pipelines.
+
 To get access to the sandbox environment that contains all the components installed and configured, please [contact our team](team@neu.ro).
 
 ## Preparation
@@ -46,13 +48,6 @@ Create secret for Label Studio token:
 neuro secret add ls-token token123456
 ```
 
-Create a new bucket for storing data and AWS credentials
-
-```shell
-neuro blob mkbucket --name mlops-demo-oss-dogs
-neuro blob mkcredentials mlops-demo-oss-dogs --name mlops-demo-oss-dogs-credentials
-```
-
 Grant permissions for the new service account
 
 ```shell
@@ -63,12 +58,28 @@ export ACCOUNT=${USER}/service-accounts/${PROJECT}
 export ROLE=${USER}/projects/${PROJECT//-/_}
 
 neuro acl grant storage:${PREFIX} ${ROLE} write
-neuro acl grant blob:${PREFIX} ${ROLE} write
 neuro acl grant job:/${ACCOUNT} ${ACCOUNT} manage
 neuro acl grant image:${PREFIX} ${ROLE} read 
 neuro acl grant secret:gh-rsa ${ROLE} read
 neuro acl grant secret:ls-token ${ROLE} read
 neuro acl grant role://${ROLE} ${ACCOUNT} read
+
+# temp workaround for neuro-flow bug
+# https://github.com/neuro-inc/neuro-flow/issues/664
+neuro acl grant role://${USER}/projects ${ACCOUNT}  manage
+```
+
+Set up the variables needed to run the loads in your cluster that were provided by the Neu.ro team:
+
+```shell
+export MLFLOW_STORAGE=<storage:path>
+export MLFLOW_URI=<URI>
+```
+
+Create a Pachyderm pipeline that will (re)train the model on every dataset update:
+
+```shell
+neuro-flow run create_pipeline --param mlflow_storage $MLFLOW_STORAGE --param mlflow_uri $MLFLOW_URI
 ```
 
 Download the full dataset to storage:
