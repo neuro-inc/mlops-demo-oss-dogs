@@ -14,3 +14,5 @@ RUN pip install --progress-bar=off -U pipx && pipx install neuro-cli
 
 RUN mkdir ~/.ssh && echo "IdentityFile ~/.ssh/id-rsa" > ~/.ssh/config
 RUN ssh-keyscan github.com >> ~/.ssh/known_hosts
+
+ENV PATH /root/.local/bin:$PATH

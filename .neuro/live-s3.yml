@@ -12,6 +12,8 @@ defaults:
     BUCKET_NAME: mlops-oss-demo-dogs
     CREDENTIALS: mlops-demo-oss-dogs-credentials
     MLFLOW_TRACKING_URI: https://demo-oss-dogs-mlflow-server--alexeynaiden.jobs.default.org.neu.ro
+    PACHY_URI: pachyderm.green-hgx-2.org.neu.ro:30650
+    PACHY_REPO: dogs-demo
 
 volumes:
   remote_dataset:
@@ -86,6 +88,8 @@ jobs:
       git clone -b ${PROJECT_GIT_BRANCH} ${PROJECT_GIT_REPO} ${PROJECT} > /dev/null 2>&1
 
       export DATA_PATH=${PROJECT}/data/images
+
+      # Init S3
       mkdir -p $DATA_PATH
       [[ -z $(neuro blob ls blob:${BUCKET_NAME}) ]] && echo "Bucket is empty" \
         || neuro blob cp -rT blob:${BUCKET_NAME} $(dirname ${DATA_PATH}) # download data if the bucket is not empty
@@ -96,10 +100,11 @@ jobs:
         --full_dataset ${{ volumes.remote_dataset.mount }}/images/Images/ \
         --nmber_of_imgs ${{ params.extend_dataset_by }}
 
-      echo "Uploading updated dataset to S3"
+      # Upload dataset to S3"
       neuro blob cp -ru ${DATA_PATH} blob:${BUCKET_NAME}
 
       # Validate dataset:
+      neuro blob ls -r blob:${BUCKET_NAME}
       echo "Total images: $(neuro blob ls -r blob:${BUCKET_NAME} | grep -oP '\w*\.\w+$' | wc -l)" # grep files only
 
   label_studio:
@@ -115,18 +120,20 @@ jobs:
       - secret:gh-rsa:/root/.ssh/id-rsa
     env:
       PROJECT: /usr/project
+      DATA_PATH: /usr/project/data/Images
       LABEL_STUDIO_LOCAL_FILES_SERVING_ENABLED: True
       LABEL_STUDIO_PROJECT: /label-studio-project
       LS_TOKEN: secret:ls-token
       LS_PORT: 443
     bash: |
-      # required for pipx
-      export PATH=/root/.local/bin:$PATH
       git clone -b ${PROJECT_GIT_BRANCH} ${PROJECT_GIT_REPO} ${PROJECT}
+
+      # Pull from S3
+      neuro blob cp blob:${BUCKET_NAME}/label_studio.sqlite3 "${PROJECT}/data/label_studio.sqlite3"
+
 
       COMPLETIONS=${LABEL_STUDIO_PROJECT}/completions
 
-      neuro blob cp blob:${BUCKET_NAME}/label_studio.sqlite3 "${PROJECT}/data/label_studio.sqlite3"
       if [[ -f "${PROJECT}/data/label_studio.sqlite3" ]];
       then
         echo Restoring existing label studio data
@@ -157,8 +164,13 @@ jobs:
         start dogs --port ${LS_PORT} --no-browser
 
 
+      # Push labeling completions (label studio-specific files) and annotation results
       neuro blob cp ${PROJECT}/data/result.json blob:${BUCKET_NAME}
       neuro blob cp /label-studio/data/label_studio.sqlite3 blob:${BUCKET_NAME}
+
+      # Validate dataset:
+      neuro blob ls -r blob:${BUCKET_NAME}
+      echo "Total images: $(neuro blob ls -r blob:${BUCKET_NAME} | grep -oP '\w*\.\w+$' | wc -l)" # grep files only
 
   deploy_inference_platform:
     image: $[[ images.seldon.ref ]]
@@ -217,14 +229,16 @@ jobs:
       PYTHONPATH: /usr/project
       PROJECT: /usr/project
       EXPOSE_SSH: "yes"
+      DATA_PATH: ${{env.PROJECT}}/data/Images
     params:
       run_id:
         descr: MLFlow run ID, which model should be deployed
       mlflow_storage:
         descr: Storage path, where MLFlow server stores model binaries
     bash: |
-      export DATA_PATH=${PROJECT}/data/images
       mkdir -p $DATA_PATH
+
+      # Download data
       [[ -z $(neuro blob ls blob:${BUCKET_NAME}) ]] && echo "Bucket is empty" \
         || neuro blob cp -r blob:${BUCKET_NAME} $(dirname ${DATA_PATH}) # download data if the bucket is not empty
 
