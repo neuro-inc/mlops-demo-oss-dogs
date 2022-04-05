@@ -2,53 +2,6 @@ kind: live
 title: demo-oss-dogs
 id: mlops_demo_oss_dogs
 
-defaults:
-  preset: cpu-medium
-  life_span: 1d
-  env:
-    # Those env vars will be assigned to every job in this flow
-    PROJECT_GIT_REPO: git@github.com:neuro-inc/mlops-demo-oss-dogs.git
-    PROJECT_GIT_BRANCH: ${{ git.branch }}
-    BUCKET_NAME: mlops-oss-demo-dogs
-    CREDENTIALS: mlops-demo-oss-dogs-credentials
-    MLFLOW_TRACKING_URI: https://demo-oss-dogs-mlflow-server--alexeynaiden.jobs.default.org.neu.ro
-    PACHY_URI: pachyderm.green-hgx-2.org.neu.ro:30650
-    PACHY_REPO: dogs-demo
-
-volumes:
-  remote_dataset:
-    remote: storage:/$[[ project.owner ]]/$[[ flow.flow_id ]]/dataset
-    mount: /dataset
-  src:
-    remote: storage:/$[[ project.owner ]]/$[[ flow.flow_id ]]/src
-    mount: /usr/project/src
-    local: src
-  config:
-    remote: storage:/$[[ project.owner ]]/$[[ flow.flow_id ]]/config
-    mount: /usr/project/config
-    local: config
-  notebooks:
-    remote: storage:/$[[ project.owner ]]/$[[ flow.flow_id ]]/notebooks
-    mount: /usr/project/notebooks
-    local: notebooks
-
-images:
-  train:
-    ref: image:/$[[ project.owner ]]/$[[ flow.flow_id ]]/train:21.5.13
-    dockerfile: $[[ flow.workspace ]]/Dockerfile
-    context: $[[ flow.workspace ]]/
-    build_preset: cpu-medium
-  seldon:
-    ref: image:/$[[ project.owner ]]/$[[ flow.flow_id ]]/seldon:20.12.16
-    dockerfile: $[[ flow.workspace ]]/seldon/seldon.Dockerfile
-    context: $[[ flow.workspace ]]/
-    build_preset: cpu-medium
-  label_studio:
-    ref: image:/$[[ project.owner ]]/$[[ flow.flow_id ]]/label_studio:21.1.18
-    dockerfile: $[[ flow.workspace ]]/label_studio/label_studio.Dockerfile
-    context: $[[ flow.workspace ]]/label_studio
-    build_preset: cpu-medium
-
 jobs:
   prepare_remote_dataset:
     name: $[[ flow.title ]]-prepare-dataset
@@ -75,7 +28,8 @@ jobs:
     pass_config: True
     volumes:
       - ${{ volumes.remote_dataset.ref_ro }}
-      - secret:gh-rsa:/root/.ssh/id-rsa
+      - ${{ upload(volumes.config).ref_ro }}
+      - ${{ upload(volumes.label_studio).ref_ro }}
     env:
       PROJECT: /usr/project
       PYTHONPATH: /usr/project
@@ -85,12 +39,10 @@ jobs:
         descr: |
           How many new images to add into current dataset.
     bash: |
-      git clone -b ${PROJECT_GIT_BRANCH} ${PROJECT_GIT_REPO} ${PROJECT} > /dev/null 2>&1
-
       export DATA_PATH=${PROJECT}/data/images
+      mkdir -p $DATA_PATH
 
       # Init S3
-      mkdir -p $DATA_PATH
       [[ -z $(neuro blob ls blob:${BUCKET_NAME}) ]] && echo "Bucket is empty" \
         || neuro blob cp -rT blob:${BUCKET_NAME} $(dirname ${DATA_PATH}) # download data if the bucket is not empty
 
@@ -117,7 +69,8 @@ jobs:
     detach: False
     browse: True
     volumes:
-      - secret:gh-rsa:/root/.ssh/id-rsa
+      - ${{ upload(volumes.config).ref_ro }}
+      - ${{ upload(volumes.label_studio).ref_ro }}
     env:
       PROJECT: /usr/project
       DATA_PATH: /usr/project/data/Images
@@ -126,13 +79,12 @@ jobs:
       LS_TOKEN: secret:ls-token
       LS_PORT: 443
     bash: |
-      git clone -b ${PROJECT_GIT_BRANCH} ${PROJECT_GIT_REPO} ${PROJECT}
-
       # Pull from S3
       neuro blob cp blob:${BUCKET_NAME}/label_studio.sqlite3 "${PROJECT}/data/label_studio.sqlite3"
 
 
       COMPLETIONS=${LABEL_STUDIO_PROJECT}/completions
+      mkdir -p ${COMPLETIONS}
 
       if [[ -f "${PROJECT}/data/label_studio.sqlite3" ]];
       then
@@ -265,24 +217,22 @@ jobs:
     life_span: 10d
     volumes:
       - storage:${{ flow.flow_id }}/mlruns:/usr/local/share/mlruns
-      - secret:/$[[ project.owner ]]/gh-rsa:/root/.ssh/id-rsa
+      - ${{ volumes.project.ref }}
     env:
       EXPOSE_SSH: "yes"
       PYTHONPATH: /usr/project
-      PROJECT: /usr/project
     pass_config: True
     bash: |
-      git clone -b ${PROJECT_GIT_BRANCH} ${PROJECT_GIT_REPO} ${PROJECT}
-
       # Pull dataset:
       export DATA_PATH=${PROJECT}/data/images
       mkdir -p $DATA_PATH
+
       [[ -z $(neuro blob ls blob:${BUCKET_NAME}) ]] && echo "Bucket is empty" \
         || neuro blob cp -r blob:${BUCKET_NAME} $(dirname ${DATA_PATH}) # download data if the bucket is not empty
 
-      python -u ${PROJECT}/src/train.py \
-        --data_dir ${PROJECT}/data/${BUCKET_NAME}/images \
-        --data_description ${PROJECT}/data/${BUCKET_NAME}/result.json
+      python -u ${{ volumes.project.mount }}/src/train.py \
+        --data_dir ${{ volumes.project.mount }}/data/${BUCKET_NAME}/images \
+        --data_description ${{ volumes.project.mount }}/data/${BUCKET_NAME}/result.json
 
   postgres:
     image: postgres:12.5
