@@ -10,7 +10,7 @@ defaults:
     PROJECT_GIT_REPO: git@github.com:neuro-inc/mlops-demo-oss-dogs.git
     PROJECT_GIT_BRANCH: ${{ git.branch }}
     BUCKET_NAME: mlops-oss-demo-dogs
-    CREDENTIALS: mlops-demo-oss-dogs-credentials
+    CREDENTIALS: mlops-demo-oss-dogs
     MLFLOW_TRACKING_URI: https://demo-oss-dogs-mlflow-server--alexeynaiden.jobs.default.org.neu.ro
     PACHY_URI: pachyderm.green-hgx-2.org.neu.ro:30650
     PACHY_REPO: dogs-demo

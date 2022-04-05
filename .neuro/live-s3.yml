@@ -80,7 +80,7 @@ jobs:
       LS_PORT: 443
     bash: |
       # Pull from S3
-      neuro blob cp blob:${BUCKET_NAME}/label_studio.sqlite3 "${PROJECT}/data/label_studio.sqlite3"
+      neuro blob cp blob:${BUCKET_NAME}/label_studio.sqlite3 "${PROJECT}/data/label_studio.sqlite3" || true
 
 
       COMPLETIONS=${LABEL_STUDIO_PROJECT}/completions
