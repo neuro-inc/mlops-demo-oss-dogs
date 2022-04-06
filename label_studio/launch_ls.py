@@ -43,7 +43,7 @@ async def _run_label_studio(
     use_local = all({i is None for i in (bucket_name, region_name, endpoint_url, aws_access_key_id, aws_secret_access_key)})
     if not use_local and not use_s3:
         raise ValueError("Invalid combination of S3 arguments passed")
-    storage_type = "S3" if use_s3 else "local"
+    storage_type = "s3" if use_s3 else "localfiles"
 
     logging.info('Starting Label Studio...')
     # use start_new_session=True not to send KeyboardInterrupt to subprocess
