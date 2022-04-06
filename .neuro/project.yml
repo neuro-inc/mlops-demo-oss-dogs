@@ -6,14 +6,11 @@ defaults:
   preset: cpu-medium
   life_span: 1d
   env:
-    # Those env vars will be assigned to every job
-    PROJECT_GIT_REPO: git@github.com:neuro-inc/mlops-demo-oss-dogs.git
-    PROJECT_GIT_BRANCH: ${{ git.branch }}
     BUCKET_NAME: mlops-oss-demo-dogs
     CREDENTIALS: mlops-demo-oss-dogs
-    MLFLOW_TRACKING_URI: https://demo-oss-dogs-mlflow-server--alexeynaiden.jobs.default.org.neu.ro
+    MLFLOW_TRACKING_URI: https://demo-oss-dogs-mlflow-server--$[[ project.owner ]].jobs.default.org.neu.ro
     PACHY_URI: pachyderm.green-hgx-2.org.neu.ro:30650
-    PACHY_REPO: dogs-demo
+    PACHY_REPO: dogs-demo-universal
 
 volumes:
   remote_dataset:
@@ -43,17 +40,17 @@ volumes:
 
 images:
   train:
-    ref: image:/$[[ project.owner ]]/$[[ flow.flow_id ]]/train:21.5.13
+    ref: image:/$[[ project.owner ]]/$[[ flow.flow_id ]]/train:22.4.0
     dockerfile: $[[ flow.workspace ]]/Dockerfile
     context: $[[ flow.workspace ]]/
     build_preset: cpu-medium
   seldon:
-    ref: image:/$[[ project.owner ]]/$[[ flow.flow_id ]]/seldon:20.12.16
+    ref: image:/$[[ project.owner ]]/$[[ flow.flow_id ]]/seldon:22.4.0
     dockerfile: $[[ flow.workspace ]]/seldon/seldon.Dockerfile
     context: $[[ flow.workspace ]]/
     build_preset: cpu-medium
   label_studio:
-    ref: image:/$[[ project.owner ]]/$[[ flow.flow_id ]]/label_studio:21.1.18
+    ref: image:/$[[ project.owner ]]/$[[ flow.flow_id ]]/label_studio:22.4.0
     dockerfile: $[[ flow.workspace ]]/label_studio/label_studio.Dockerfile
     context: $[[ flow.workspace ]]/label_studio
     build_preset: cpu-medium
