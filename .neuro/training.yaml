@@ -8,7 +8,6 @@ defaults:
 
 params:
   mlflow_storage: ~
-  mlflow_uri: ~
 
 tasks:
   - id: train
