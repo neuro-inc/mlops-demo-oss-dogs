@@ -35,7 +35,6 @@ class DogsDataset(Sequence):
     def on_epoch_end(self, epoch=None, logs=None) -> None:
         shuffle(self.indices)
 
-
     def __str__(self) -> str:
         return f"DogsDataset\n===== images={self.images}\n===== labels={self.labels}\n===== class enc={self.class_encoding}"
 
