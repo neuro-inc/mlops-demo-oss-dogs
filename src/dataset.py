@@ -35,6 +35,10 @@ class DogsDataset(Sequence):
     def on_epoch_end(self, epoch=None, logs=None) -> None:
         shuffle(self.indices)
 
+
+    def __str__(self) -> str:
+        return f"DogsDataset\n===== images={self.images}\n===== labels={self.labels}\n===== class enc={self.class_encoding}"
+
     def __len__(self) -> int:
         return math.ceil(len(self.images) / self.batch_size)
 
@@ -48,11 +52,11 @@ class DogsDataset(Sequence):
             img_name = Path(urlparse(self.images[bi]).path).name
             img_path = self.dataset_path / img_name
             print(f'img_name={img_name} img_path={img_path} url={self.images[bi]}')
+            print(f'labels[bi]={self.labels[bi]}')
             x = img_to_numpy(img_path, target_size=INPUT_SIZE)
             x = preprocess_input(x)
             images.append(x)
 
             labels.append(self.class_encoding[self.labels[bi]])
-            print(f'labels[bi]={self.labels[bi]}')
 
         return (np.array(images), np.array(labels))
