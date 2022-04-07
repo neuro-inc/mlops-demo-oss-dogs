@@ -2,7 +2,7 @@
   <Image name="image" value="$image" zoom="true"/>
   <Choices name="choice" toName="image" showInLine="true">
     <Choice value="Afghan hound" background="blue"/>
-    <Choice value="Malteese dog" background="green"/>
+    <Choice value="Maltese dog" background="green"/>
   </Choices>
 </View>
 
