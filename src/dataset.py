@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 import math
 from src.preprocessing import img_to_numpy
@@ -46,6 +47,7 @@ class DogsDataset(Sequence):
         for bi in batch_indices:
             img_name = Path(urlparse(self.images[bi]).path).name
             img_path = self.dataset_path / img_name
+            logging.info(f'img_name={img_name} img_path={img_path} url={self.images[bi]}')
             x = img_to_numpy(img_path, target_size=INPUT_SIZE)
             x = preprocess_input(x)
             images.append(x)

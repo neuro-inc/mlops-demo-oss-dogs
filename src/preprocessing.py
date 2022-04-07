@@ -48,6 +48,7 @@ def _preprocess(X: np.ndarray) -> np.ndarray:
 
 def split_json(dataset_description: Path) -> Tuple[List[str], List[int]]:
     raw_data = json.loads(dataset_description.read_text())
+    logging.info(f"raw data: {raw_data}")
     images = []
     labels = []
     for item in raw_data:
