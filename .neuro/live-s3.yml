@@ -9,8 +9,8 @@ defaults:
     # Those env vars will be assigned to every job in this flow
     PROJECT_GIT_REPO: git@github.com:neuro-inc/mlops-demo-oss-dogs.git
     PROJECT_GIT_BRANCH: ${{ git.branch }}
-    BUCKET_NAME: mlops-oss-demo-dogs
-    CREDENTIALS: mlops-demo-oss-dogs-credentials
+    BUCKET_NAME: mlops-oss-demo-dogs-s3
+    CREDENTIALS: bucket-credentials-5e8a0de5-7384-4a5d-837a-40fc9040d5e2
     MLFLOW_TRACKING_URI: https://demo-oss-dogs-mlflow-server--alexeynaiden.jobs.default.org.neu.ro
     PACHY_URI: pachyderm.green-hgx-2.org.neu.ro:30650
     PACHY_REPO: dogs-demo
@@ -129,7 +129,7 @@ jobs:
       git clone -b ${PROJECT_GIT_BRANCH} ${PROJECT_GIT_REPO} ${PROJECT}
 
       # Pull from S3
-      neuro blob cp blob:${BUCKET_NAME}/label_studio.sqlite3 "${PROJECT}/data/label_studio.sqlite3"
+      neuro blob cp blob:${BUCKET_NAME}/label_studio.sqlite3 "${PROJECT}/data/label_studio.sqlite3" || true
 
 
       COMPLETIONS=${LABEL_STUDIO_PROJECT}/completions
@@ -197,7 +197,7 @@ jobs:
     detach: True
     browse: True
     params:
-      endpoint_url: 
+      endpoint_url:
         default: ~
         descr: |
           Examples:
@@ -214,7 +214,7 @@ jobs:
     cmd: |
       -f $[[ volumes.src.mount ]]/locust.py --web-port 8080 -H $[[ params.endpoint_url ]]
 
-  jupyter:                                                                     
+  jupyter:
     image: $[[ images.train.ref ]]
     name: $[[ flow.title ]]-jupyter
     preset: gpu-small
@@ -278,11 +278,11 @@ jobs:
       export DATA_PATH=${PROJECT}/data/images
       mkdir -p $DATA_PATH
       [[ -z $(neuro blob ls blob:${BUCKET_NAME}) ]] && echo "Bucket is empty" \
-        || neuro blob cp -r blob:${BUCKET_NAME} $(dirname ${DATA_PATH}) # download data if the bucket is not empty
+        || neuro blob cp -rT blob:${BUCKET_NAME} $(dirname ${DATA_PATH}) # download data if the bucket is not empty
 
       python -u ${PROJECT}/src/train.py \
-        --data_dir ${PROJECT}/data/${BUCKET_NAME}/images \
-        --data_description ${PROJECT}/data/${BUCKET_NAME}/result.json
+        --data_dir ${PROJECT}/data/images \
+        --data_description ${PROJECT}/data/result.json
 
   postgres:
     image: postgres:12.5
