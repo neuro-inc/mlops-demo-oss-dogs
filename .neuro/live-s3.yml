@@ -228,11 +228,11 @@ jobs:
       mkdir -p $DATA_PATH
 
       [[ -z $(neuro blob ls blob:${BUCKET_NAME}) ]] && echo "Bucket is empty" \
-        || neuro blob cp -r blob:${BUCKET_NAME} $(dirname ${DATA_PATH}) # download data if the bucket is not empty
+        || neuro blob cp -rT blob:${BUCKET_NAME} $(dirname ${DATA_PATH}) # download data if the bucket is not empty
 
       python -u ${{ volumes.project.mount }}/src/train.py \
-        --data_dir ${{ volumes.project.mount }}/data/${BUCKET_NAME}/images \
-        --data_description ${{ volumes.project.mount }}/data/${BUCKET_NAME}/result.json
+        --data_dir ${{ volumes.project.mount }}/data/images \
+        --data_description ${{ volumes.project.mount }}/data/result.json
 
   postgres:
     image: postgres:12.5
