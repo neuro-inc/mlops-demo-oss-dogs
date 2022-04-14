@@ -56,7 +56,7 @@ jobs:
       neuro blob cp -ru ${DATA_PATH} blob:${BUCKET_NAME}
 
       # Validate dataset:
-      neuro blob ls -r blob:${BUCKET_NAME}
+      neuro blob ls -r blob:${BUCKET_NAME} | tee
       echo "Total images: $(neuro blob ls -r blob:${BUCKET_NAME} | grep -oP '\w*\.\w+$' | wc -l)" # grep files only
 
   label_studio:
@@ -80,7 +80,7 @@ jobs:
       LS_PORT: 443
     bash: |
       # Pull from S3
-      neuro blob cp blob:${BUCKET_NAME}/label_studio.sqlite3 "${PROJECT}/data/label_studio.sqlite3" || true
+      neuro blob cp blob:${BUCKET_NAME}/label_studio.sqlite3 "${PROJECT}/data/label_studio.sqlite3" || echo Label Studio data was not found
 
 
       COMPLETIONS=${LABEL_STUDIO_PROJECT}/completions
@@ -181,7 +181,7 @@ jobs:
       PYTHONPATH: /usr/project
       PROJECT: /usr/project
       EXPOSE_SSH: "yes"
-      DATA_PATH: ${{env.PROJECT}}/data/Images
+      DATA_PATH: /usr/project/data/Images
     params:
       run_id:
         descr: MLFlow run ID, which model should be deployed

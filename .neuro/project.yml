@@ -11,6 +11,7 @@ defaults:
     MLFLOW_TRACKING_URI: https://demo-oss-dogs-mlflow-server--$[[ project.owner ]].jobs.default.org.neu.ro
     PACHY_URI: pachyderm.green-hgx-2.org.neu.ro:30650
     PACHY_REPO: dogs-demo-s3
+    NEURO_CLI_DISABLE_PYPI_VERSION_CHECK: true
 
 volumes:
   remote_dataset:

@@ -20,24 +20,6 @@ Build all images used in the flow:
 neuro-flow build ALL
 ```
 
-Create a secret with a private SSH key for accessing the GitHub repository (pull/push access should be allowed and the SSH key should not be protected with a passphrase):
-
-```shell
-neuro secret add gh-rsa @~/.ssh/id_rsa
-```
-
-Create a service account for authenticating the training pipeline:
-
-```shell
-neuro service-account create --name mlops-demo-oss-dogs
-```
-
-Take the full token from the command's output and store it in a secret:
-
-```shell
-neuro secret add platform-config FULL_TOKEN_FROM_OUTPUT
-```
-
 Create secret for Label Studio token:
 
 ```shell
@@ -77,7 +59,7 @@ neuro-flow run prepare_remote_dataset
 
 ## The flow
 
-- Pick 15 images from the dataset and put them under Pachyderm:
+- Pick 15 images from the dataset and put them to S3 bucket:
 
   ```shell
   neuro-flow run extend_data --param extend_dataset_by 15
@@ -129,7 +111,7 @@ neuro-flow run label_studio
 neuro-flow run train
 ```
 
-- Deploy the model to Seldon using our Kubernetes [MLFlow2Seldon operator](https://github.com/neuro-inc/mlops-k8s-mlflow2seldon) (assume the operator is already deployed). In this case, you will also need a Seldon Core installation up and running on the cluster.
+- Deploy the model to Seldon using our Kubernetes [MLFlow2Seldon operator](https://github.com/neuro-inc/mlops-k8s-mlflow2seldon) (contact us at `mlops[at]neu.ro` if you need a deployed operator).
 
 ## Additional
 

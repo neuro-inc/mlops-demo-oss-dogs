@@ -4,7 +4,7 @@
   },
   "description": "Retrain the model after labeling data",
   "transform": {
-    "image": "ghcr.io/neuro-inc/neuro-flow:21.11.2",
+    "image": "ghcr.io/neuro-inc/neuro-flow:22.4.2",
     "cmd": [
       "/bin/bash"
     ],
@@ -27,7 +27,7 @@
   },
   "input": {
     "pfs": {
-      "repo": "dogs-demo",
+      "repo": "##PACHY_REPO##",
       "glob": "/data/result.json"
     }
   }

@@ -7,6 +7,7 @@ from keras.utils import Sequence
 from urllib.parse import urlparse
 from config.preprocessing import INPUT_SIZE
 from config.model import BATCH_SIZE
+from yarl import URL
 import numpy as np
 from keras.applications.vgg16 import preprocess_input
 
@@ -44,7 +45,8 @@ class DogsDataset(Sequence):
         labels = []
 
         for bi in batch_indices:
-            img_name = Path(urlparse(self.images[bi]).path).name
+            img_url = URL(self.images[bi])
+            img_name = Path(img_url.query.get('d') or img_url.path).name
             img_path = self.dataset_path / img_name
             x = img_to_numpy(img_path, target_size=INPUT_SIZE)
             x = preprocess_input(x)
