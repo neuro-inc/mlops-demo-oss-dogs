@@ -57,7 +57,7 @@ jobs:
 
       # Validate dataset:
       neuro blob ls -r blob:${BUCKET_NAME} | tee
-      echo "Total images: $(neuro blob ls -r blob:${BUCKET_NAME} | grep -oP '\w*\.\w+$' | wc -l)" # grep files only
+      echo "Total images: $(neuro blob ls -r blob:${BUCKET_NAME}/images/ | grep -oP '\w*\.\w+$' | wc -l)" # grep files only
 
   label_studio:
     image: $[[ images.label_studio.ref ]]
@@ -122,7 +122,7 @@ jobs:
 
       # Validate dataset:
       neuro blob ls -r blob:${BUCKET_NAME}
-      echo "Total images: $(neuro blob ls -r blob:${BUCKET_NAME} | grep -oP '\w*\.\w+$' | wc -l)" # grep files only
+      echo "Total images: $(neuro blob ls -r blob:${BUCKET_NAME}/images/ | grep -oP '\w*\.\w+$' | wc -l)" # grep files only
 
   deploy_inference_platform:
     image: $[[ images.seldon.ref ]]
@@ -248,7 +248,7 @@ jobs:
       PGDATA: /var/lib/postgresql/data/pgdata
 
   mlflow_server:
-    image: neuromation/mlflow:1.11.0
+    image: neuromation/mlflow:v1.25.1
     name: $[[ flow.title ]]-mlflow-server
     preset: cpu-small
     http_port: 5000

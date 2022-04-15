@@ -123,6 +123,8 @@ def _save_labeling_results(project_root: Path) -> None:
     response = requests.get(f"{LS_API_URL}/projects/1/export?exportType=JSON",
                             headers=AUTH)
     results_file = project_root / "data" / "result.json"
+    results_folder = results_file.parent
+    results_folder.mkdir(parents=True, exist_ok=True)
     logging.info(f"Saving results to {results_file}")
     with results_file.open("wb") as fd:
         fd.write(response.content)
