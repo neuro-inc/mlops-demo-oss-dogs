@@ -31,7 +31,6 @@ jobs:
       - ${{ upload(volumes.config).ref_ro }}
       - ${{ upload(volumes.label_studio).ref_ro }}
     env:
-      PROJECT: /usr/project
       PYTHONPATH: /usr/project
     params:
       extend_dataset_by:
@@ -73,7 +72,6 @@ jobs:
       - ${{ upload(volumes.config).ref_ro }}
       - ${{ upload(volumes.label_studio).ref_ro }}
     env:
-      PROJECT: /usr/project
       DATA_PATH: /usr/project/data/Images
       LABEL_STUDIO_LOCAL_FILES_SERVING_ENABLED: True
       LABEL_STUDIO_PROJECT: /label-studio-project
@@ -173,14 +171,14 @@ jobs:
       - ${{ params.mlflow_storage }}/0/${{ params.run_id }}/artifacts/model/data/model.h5:/storage/model.h5
     env:
       PYTHONPATH: /usr/project
-      PROJECT: /usr/project
       EXPOSE_SSH: "yes"
-      DATA_PATH: /usr/project//data/Images
+      DATA_PATH: /usr/project/data/Images
     params:
       run_id:
         descr: MLFlow run ID, which model should be deployed
       mlflow_storage:
         descr: Storage path, where MLFlow server stores model binaries
+        default: 'storage:/${{ project.owner }}/${{ flow.id }}/mlruns'
     bash: |
       # Init pachctl
       pachctl config update context default --pachd-address ${PACHY_URI}
@@ -228,8 +226,12 @@ jobs:
     browse: True
     life_span: 30d
     detach: True
+    params:
+      mlflow_storage:
+        descr: Storage path, where MLFlow server stores model binaries
+        default: 'storage:/${{ project.owner }}/${{ flow.id }}/mlruns'
     volumes:
-      - storage:${{ flow.flow_id }}/mlruns:/usr/local/share/mlruns
+      - ${{ params.mlflow_storage }}:/usr/local/share/mlruns
     cmd: |
       server --host 0.0.0.0
         --backend-store-uri=postgresql://postgres:password@${{ inspect_job('postgres').internal_hostname_named }}:5432
@@ -282,13 +284,16 @@ jobs:
     image: $[[ images.train.ref ]]
     preset: cpu-medium
     life_span: 1d
+    params:
+      mlflow_storage:
+        descr: Storage path, where MLFlow server stores model binaries
+        default: 'storage:/${{ project.owner }}/${{ flow.id }}/mlruns'
     volumes:
-      - storage:/${{ project.owner }}/${{ flow.flow_id }}/mlruns:/usr/local/share/mlruns
+      - ${{ params.mlflow_storage }}:/usr/local/share/mlruns
       - $[[ volumes.project.ref ]]
     env:
       EXPOSE_SSH: "yes"
       PYTHONPATH: /usr/project
-      PROJECT: ${{ volumes.project.mount }}
     bash: |
       # Init pachctl
       pachctl config update context default --pachd-address ${PACHY_URI}

@@ -6,11 +6,12 @@ defaults:
   preset: cpu-medium
   life_span: 1d
   env:
-    BUCKET_NAME: mlops-oss-demo-dogs-s3
-    CREDENTIALS: bucket-credentials-5e8a0de5-7384-4a5d-837a-40fc9040d5e2
+    PROJECT: /usr/project
+    BUCKET_NAME: mlops-demo-oss-dogs
+    CREDENTIALS: mlops-demo-oss-dogs-credentials
     MLFLOW_TRACKING_URI: https://demo-oss-dogs-mlflow-server--$[[ project.owner ]].jobs.default.org.neu.ro
     PACHY_URI: pachyderm.green-hgx-2.org.neu.ro:30650
-    PACHY_REPO: dogs-demo-s3
+    PACHY_REPO: dogs-demo
     NEURO_CLI_DISABLE_PYPI_VERSION_CHECK: true
 
 volumes:
