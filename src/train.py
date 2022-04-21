@@ -51,6 +51,8 @@ def train(args: argparse.Namespace) -> None:
 
     model = get_model()
 
+    print(train_ds)
+
     history = model.fit(
         train_ds,
         epochs=EPOCHS,

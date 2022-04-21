@@ -148,7 +148,7 @@ jobs:
     detach: True
     browse: True
     params:
-      endpoint_url: 
+      endpoint_url:
         default: ~
         descr: |
           Examples:
@@ -165,7 +165,7 @@ jobs:
     cmd: |
       -f $[[ volumes.src.mount ]]/locust.py --web-port 8080 -H $[[ params.endpoint_url ]]
 
-  jupyter:                                                                     
+  jupyter:
     image: $[[ images.train.ref ]]
     name: $[[ flow.title ]]-jupyter
     preset: gpu-small
