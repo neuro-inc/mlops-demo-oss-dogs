@@ -24,17 +24,10 @@ Build all images used in the flow:
 neuro-flow build ALL
 ```
 
-Create a secret with a private SSH key for accessing the GitHub repository (pull/push access should be allowed and the
-SSH key should not be protected with a passphrase):
-
-```shell
-neuro secret add gh-rsa @~/.ssh/id_rsa
-```
-
 Create a service account for authenticating the training pipeline:
 
 ```shell
-neuro service-account create --name mlops_demo_oss_dogs
+neuro service-account create --name mlops-demo-oss-dogs
 ```
 
 Take the full token from the command's output and store it in a secret:
@@ -52,11 +45,11 @@ neuro secret add ls-token token123456
 Grant permissions for the new service account
 
 ```shell
-export USER=<YOUR_USERNAME>
+export USER=<YOUR_NEURO_USERNAME>
 export PROJECT=mlops_demo_oss_dogs
 export PREFIX="/${USER}/${PROJECT}/"
-export ACCOUNT=${USER}/service-accounts/${PROJECT}
-export ROLE=${USER}/projects/${PROJECT//-/_}
+export ACCOUNT=${USER}/service-accounts/${PROJECT//_/-}
+export ROLE=${USER}/projects/${PROJECT}
 
 neuro acl grant storage:${PREFIX} ${ROLE} write
 neuro acl grant job:/${ACCOUNT} ${ACCOUNT} manage
