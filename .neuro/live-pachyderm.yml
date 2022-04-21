@@ -218,7 +218,7 @@ jobs:
       PGDATA: /var/lib/postgresql/data/pgdata
 
   mlflow_server:
-    image: neuromation/mlflow:v1.25.1
+    image: ghcr.io/neuro-inc/mlflow:v1.25.2
     name: $[[ flow.title ]]-mlflow-server
     preset: cpu-small
     http_port: 5000

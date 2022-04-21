@@ -135,6 +135,7 @@ jobs:
         descr: MLFlow run ID, which model should be deployed
       mlflow_storage:
         descr: Storage path, where MLFlow server stores model binaries
+        default: 'storage:/${{ project.owner }}/${{ flow.id }}/mlruns'
     volumes:
       - ${{ params.mlflow_storage }}/0/${{ params.run_id }}/artifacts/model/data/model.h5:/storage/model.h5
 
@@ -245,7 +246,7 @@ jobs:
       PGDATA: /var/lib/postgresql/data/pgdata
 
   mlflow_server:
-    image: neuromation/mlflow:v1.25.1
+    image: ghcr.io/neuro-inc/mlflow:v1.25.2
     name: $[[ flow.title ]]-mlflow-server
     preset: cpu-small
     http_port: 5000
