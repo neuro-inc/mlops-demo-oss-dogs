@@ -135,7 +135,7 @@ jobs:
         descr: MLFlow run ID, which model should be deployed
       mlflow_storage:
         descr: Storage path, where MLFlow server stores model binaries
-        default: 'storage:/${{ project.owner }}/${{ flow.id }}/mlruns'
+        default: 'storage:/${{ project.owner }}/${{ project.id }}/mlruns'
     volumes:
       - ${{ params.mlflow_storage }}/0/${{ params.run_id }}/artifacts/model/data/model.h5:/storage/model.h5
 

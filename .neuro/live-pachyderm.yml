@@ -128,7 +128,7 @@ jobs:
         descr: MLFlow run ID, which model should be deployed
       mlflow_storage:
         descr: Storage path, where MLFlow server stores model binaries
-        default: 'storage:/${{ project.owner }}/${{ flow.id }}/mlruns'
+        default: 'storage:/${{ project.owner }}/${{ project.id }}/mlruns'
     volumes:
       - ${{ params.mlflow_storage }}/0/${{ params.run_id }}/artifacts/model/data/model.h5:/storage/model.h5
 
@@ -178,14 +178,14 @@ jobs:
         descr: MLFlow run ID, which model should be deployed
       mlflow_storage:
         descr: Storage path, where MLFlow server stores model binaries
-        default: 'storage:/${{ project.owner }}/${{ flow.id }}/mlruns'
+        default: 'storage:/${{ project.owner }}/${{ project.id }}/mlruns'
     bash: |
       # Init pachctl
       pachctl config update context default --pachd-address ${PACHY_URI}
       pachctl inspect repo ${PACHY_REPO} || pachctl create repo ${PACHY_REPO}
 
       # Download data
-      pachctl get file ${PACHY_REPO}@master:/data/Images -r ${PROJECT}/data/Images | tee
+      pachctl get file ${PACHY_REPO}@master:/data/Images -r -o ${PROJECT}/data/Images | tee
 
       jupyter notebook  \
         --no-browser \
@@ -229,7 +229,7 @@ jobs:
     params:
       mlflow_storage:
         descr: Storage path, where MLFlow server stores model binaries
-        default: 'storage:/${{ project.owner }}/${{ flow.id }}/mlruns'
+        default: 'storage:/${{ project.owner }}/${{ project.id }}/mlruns'
     volumes:
       - ${{ params.mlflow_storage }}:/usr/local/share/mlruns
     cmd: |
@@ -287,7 +287,7 @@ jobs:
     params:
       mlflow_storage:
         descr: Storage path, where MLFlow server stores model binaries
-        default: 'storage:/${{ project.owner }}/${{ flow.id }}/mlruns'
+        default: 'storage:/${{ project.owner }}/${{ project.id }}/mlruns'
     volumes:
       - ${{ params.mlflow_storage }}:/usr/local/share/mlruns
       - $[[ volumes.project.ref ]]

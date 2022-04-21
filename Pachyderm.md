@@ -53,7 +53,6 @@ export ROLE=${USER}/projects/${PROJECT}
 
 neuro acl grant storage:${PREFIX} ${ROLE} write
 neuro acl grant job:/${ACCOUNT} ${ACCOUNT} manage
-neuro acl grant image:${PREFIX} ${ROLE} read 
 neuro acl grant secret:ls-token ${ROLE} read
 neuro acl grant role://${ROLE} ${ACCOUNT} read
 ```
