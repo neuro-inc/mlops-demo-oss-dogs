@@ -78,6 +78,7 @@ jobs:
       LS_PORT: 443
     bash: |
       # Pull from S3
+      mkdir -p ${PROJECT}/data
       neuro blob cp blob:${BUCKET_NAME}/label_studio.sqlite3 "${PROJECT}/data/label_studio.sqlite3" || echo Label Studio data was not found
 
 
