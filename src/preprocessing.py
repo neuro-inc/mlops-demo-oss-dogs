@@ -53,4 +53,4 @@ def split_json(dataset_description: Path) -> Tuple[List[str], List[int]]:
     for item in raw_data:
         images.append(item["data"]["image"])
         labels.append(item["annotations"][0]["result"][0]["value"]["choices"][0])
-    return (images, labels)
+    return images, labels

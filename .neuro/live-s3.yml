@@ -2,53 +2,6 @@ kind: live
 title: demo-oss-dogs
 id: mlops_demo_oss_dogs
 
-defaults:
-  preset: cpu-medium
-  life_span: 1d
-  env:
-    # Those env vars will be assigned to every job in this flow
-    PROJECT_GIT_REPO: git@github.com:neuro-inc/mlops-demo-oss-dogs.git
-    PROJECT_GIT_BRANCH: ${{ git.branch }}
-    BUCKET_NAME: mlops-oss-demo-dogs-s3
-    CREDENTIALS: bucket-credentials-5e8a0de5-7384-4a5d-837a-40fc9040d5e2
-    MLFLOW_TRACKING_URI: https://demo-oss-dogs-mlflow-server--alexeynaiden.jobs.default.org.neu.ro
-    PACHY_URI: pachyderm.green-hgx-2.org.neu.ro:30650
-    PACHY_REPO: dogs-demo
-
-volumes:
-  remote_dataset:
-    remote: storage:/$[[ project.owner ]]/$[[ flow.flow_id ]]/dataset
-    mount: /dataset
-  src:
-    remote: storage:/$[[ project.owner ]]/$[[ flow.flow_id ]]/src
-    mount: /usr/project/src
-    local: src
-  config:
-    remote: storage:/$[[ project.owner ]]/$[[ flow.flow_id ]]/config
-    mount: /usr/project/config
-    local: config
-  notebooks:
-    remote: storage:/$[[ project.owner ]]/$[[ flow.flow_id ]]/notebooks
-    mount: /usr/project/notebooks
-    local: notebooks
-
-images:
-  train:
-    ref: image:/$[[ project.owner ]]/$[[ flow.flow_id ]]/train:21.5.13
-    dockerfile: $[[ flow.workspace ]]/Dockerfile
-    context: $[[ flow.workspace ]]/
-    build_preset: cpu-medium
-  seldon:
-    ref: image:/$[[ project.owner ]]/$[[ flow.flow_id ]]/seldon:20.12.16
-    dockerfile: $[[ flow.workspace ]]/seldon/seldon.Dockerfile
-    context: $[[ flow.workspace ]]/
-    build_preset: cpu-medium
-  label_studio:
-    ref: image:/$[[ project.owner ]]/$[[ flow.flow_id ]]/label_studio:21.1.18
-    dockerfile: $[[ flow.workspace ]]/label_studio/label_studio.Dockerfile
-    context: $[[ flow.workspace ]]/label_studio
-    build_preset: cpu-medium
-
 jobs:
   prepare_remote_dataset:
     name: $[[ flow.title ]]-prepare-dataset
@@ -75,9 +28,9 @@ jobs:
     pass_config: True
     volumes:
       - ${{ volumes.remote_dataset.ref_ro }}
-      - secret:gh-rsa:/root/.ssh/id-rsa
+      - ${{ upload(volumes.config).ref_ro }}
+      - ${{ upload(volumes.label_studio).ref_ro }}
     env:
-      PROJECT: /usr/project
       PYTHONPATH: /usr/project
     params:
       extend_dataset_by:
@@ -85,12 +38,10 @@ jobs:
         descr: |
           How many new images to add into current dataset.
     bash: |
-      git clone -b ${PROJECT_GIT_BRANCH} ${PROJECT_GIT_REPO} ${PROJECT} > /dev/null 2>&1
-
       export DATA_PATH=${PROJECT}/data/images
+      mkdir -p $DATA_PATH
 
       # Init S3
-      mkdir -p $DATA_PATH
       [[ -z $(neuro blob ls blob:${BUCKET_NAME}) ]] && echo "Bucket is empty" \
         || neuro blob cp -rT blob:${BUCKET_NAME} $(dirname ${DATA_PATH}) # download data if the bucket is not empty
 
@@ -104,8 +55,8 @@ jobs:
       neuro blob cp -ru ${DATA_PATH} blob:${BUCKET_NAME}
 
       # Validate dataset:
-      neuro blob ls -r blob:${BUCKET_NAME}
-      echo "Total images: $(neuro blob ls -r blob:${BUCKET_NAME} | grep -oP '\w*\.\w+$' | wc -l)" # grep files only
+      neuro blob ls -r blob:${BUCKET_NAME} | tee
+      echo "Total images: $(neuro blob ls -r blob:${BUCKET_NAME}/images/ | grep -oP '\w*\.\w+$' | wc -l)" # grep files only
 
   label_studio:
     image: $[[ images.label_studio.ref ]]
@@ -117,22 +68,22 @@ jobs:
     detach: False
     browse: True
     volumes:
-      - secret:gh-rsa:/root/.ssh/id-rsa
+      - ${{ upload(volumes.config).ref_ro }}
+      - ${{ upload(volumes.label_studio).ref_ro }}
     env:
-      PROJECT: /usr/project
       DATA_PATH: /usr/project/data/Images
       LABEL_STUDIO_LOCAL_FILES_SERVING_ENABLED: True
       LABEL_STUDIO_PROJECT: /label-studio-project
       LS_TOKEN: secret:ls-token
       LS_PORT: 443
     bash: |
-      git clone -b ${PROJECT_GIT_BRANCH} ${PROJECT_GIT_REPO} ${PROJECT}
-
       # Pull from S3
-      neuro blob cp blob:${BUCKET_NAME}/label_studio.sqlite3 "${PROJECT}/data/label_studio.sqlite3" || true
+      mkdir -p ${PROJECT}/data
+      neuro blob cp blob:${BUCKET_NAME}/label_studio.sqlite3 "${PROJECT}/data/label_studio.sqlite3" || echo Label Studio data was not found
 
 
       COMPLETIONS=${LABEL_STUDIO_PROJECT}/completions
+      mkdir -p ${COMPLETIONS}
 
       if [[ -f "${PROJECT}/data/label_studio.sqlite3" ]];
       then
@@ -169,8 +120,8 @@ jobs:
       neuro blob cp /label-studio/data/label_studio.sqlite3 blob:${BUCKET_NAME}
 
       # Validate dataset:
-      neuro blob ls -r blob:${BUCKET_NAME}
-      echo "Total images: $(neuro blob ls -r blob:${BUCKET_NAME} | grep -oP '\w*\.\w+$' | wc -l)" # grep files only
+      neuro blob ls -r blob:${BUCKET_NAME} | tee
+      echo "Total images: $(neuro blob ls -r blob:${BUCKET_NAME}/images/ | grep -oP '\w*\.\w+$' | wc -l)" # grep files only
 
   deploy_inference_platform:
     image: $[[ images.seldon.ref ]]
@@ -185,6 +136,7 @@ jobs:
         descr: MLFlow run ID, which model should be deployed
       mlflow_storage:
         descr: Storage path, where MLFlow server stores model binaries
+        default: 'storage:/${{ project.owner }}/${{ project.id }}/mlruns'
     volumes:
       - ${{ params.mlflow_storage }}/0/${{ params.run_id }}/artifacts/model/data/model.h5:/storage/model.h5
 
@@ -222,14 +174,14 @@ jobs:
     http_auth: False
     browse: True
     detach: False
+    pass_config: True
     volumes:
       - "${{ upload(volumes.notebooks).ref_rw }}"
       - ${{ params.mlflow_storage }}/0/${{ params.run_id }}/artifacts/model/data/model.h5:/storage/model.h5
     env:
       PYTHONPATH: /usr/project
-      PROJECT: /usr/project
       EXPOSE_SSH: "yes"
-      DATA_PATH: ${{env.PROJECT}}/data/Images
+      DATA_PATH: /usr/project/data/Images
     params:
       run_id:
         descr: MLFlow run ID, which model should be deployed
@@ -240,7 +192,7 @@ jobs:
 
       # Download data
       [[ -z $(neuro blob ls blob:${BUCKET_NAME}) ]] && echo "Bucket is empty" \
-        || neuro blob cp -r blob:${BUCKET_NAME} $(dirname ${DATA_PATH}) # download data if the bucket is not empty
+        || neuro blob cp -rT blob:${BUCKET_NAME}/images $(dirname ${DATA_PATH}) # download data if the bucket is not empty
 
       jupyter notebook  \
         --no-browser \
@@ -265,24 +217,22 @@ jobs:
     life_span: 10d
     volumes:
       - storage:${{ flow.flow_id }}/mlruns:/usr/local/share/mlruns
-      - secret:/$[[ project.owner ]]/gh-rsa:/root/.ssh/id-rsa
+      - ${{ upload(volumes.project).ref }}
     env:
       EXPOSE_SSH: "yes"
       PYTHONPATH: /usr/project
-      PROJECT: /usr/project
     pass_config: True
     bash: |
-      git clone -b ${PROJECT_GIT_BRANCH} ${PROJECT_GIT_REPO} ${PROJECT}
-
       # Pull dataset:
       export DATA_PATH=${PROJECT}/data/images
       mkdir -p $DATA_PATH
+
       [[ -z $(neuro blob ls blob:${BUCKET_NAME}) ]] && echo "Bucket is empty" \
         || neuro blob cp -rT blob:${BUCKET_NAME} $(dirname ${DATA_PATH}) # download data if the bucket is not empty
 
-      python -u ${PROJECT}/src/train.py \
-        --data_dir ${PROJECT}/data/images \
-        --data_description ${PROJECT}/data/result.json
+      python -u ${{ volumes.project.mount }}/src/train.py \
+        --data_dir ${{ volumes.project.mount }}/data/images \
+        --data_description ${{ volumes.project.mount }}/data/result.json
 
   postgres:
     image: postgres:12.5
@@ -298,7 +248,7 @@ jobs:
       PGDATA: /var/lib/postgresql/data/pgdata
 
   mlflow_server:
-    image: neuromation/mlflow:1.11.0
+    image: ghcr.io/neuro-inc/mlflow:v1.25.2
     name: $[[ flow.title ]]-mlflow-server
     preset: cpu-small
     http_port: 5000

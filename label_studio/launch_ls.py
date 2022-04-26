@@ -39,8 +39,10 @@ async def _run_label_studio(
         aws_access_key_id: Optional[str] = None,
         aws_secret_access_key: Optional[str] = None,
 ) -> None:
-    use_s3 = all({i is not None for i in (bucket_name, region_name, endpoint_url, aws_access_key_id, aws_secret_access_key)})
-    use_local = all({i is None for i in (bucket_name, region_name, endpoint_url, aws_access_key_id, aws_secret_access_key)})
+    use_s3 = all(
+        {i is not None for i in (bucket_name, region_name, endpoint_url, aws_access_key_id, aws_secret_access_key)})
+    use_local = all(
+        {i is None for i in (bucket_name, region_name, endpoint_url, aws_access_key_id, aws_secret_access_key)})
     if not use_local and not use_s3:
         raise ValueError("Invalid combination of S3 arguments passed")
     storage_type = "s3" if use_s3 else "localfiles"
@@ -57,17 +59,24 @@ async def _run_label_studio(
         # Create local storage if it doesn't exist
         data = {
             "project": 1,
-            "title": "S3",
-            "bucket": bucket_name,
-            "prefix": "images/",
-            "region_name": region_name,
-            "s3_endpoint": endpoint_url,
-            "aws_access_key_id": aws_access_key_id,
-            "aws_secret_access_key": aws_secret_access_key,
-            "presign_ttl": 60,
-            "recursive_scan": False,
-            "use_blob_urls": True
+            "title": storage_type,
+            "use_blob_urls": True,
         }
+        if use_s3:
+            data.update({
+                "bucket": bucket_name,
+                "prefix": "images/",
+                "region_name": region_name,
+                "s3_endpoint": endpoint_url,
+                "aws_access_key_id": aws_access_key_id,
+                "aws_secret_access_key": aws_secret_access_key,
+                "presign_ttl": 60,
+                "recursive_scan": False,
+            })
+        else:
+            data.update({
+                "path": os.environ.get('DATA_PATH'),
+            })
         requests.post(url=f"{LS_API_URL}/storages/{storage_type}",
                       json=data,
                       headers=AUTH)
@@ -114,6 +123,8 @@ def _save_labeling_results(project_root: Path) -> None:
     response = requests.get(f"{LS_API_URL}/projects/1/export?exportType=JSON",
                             headers=AUTH)
     results_file = project_root / "data" / "result.json"
+    results_folder = results_file.parent
+    results_folder.mkdir(parents=True, exist_ok=True)
     logging.info(f"Saving results to {results_file}")
     with results_file.open("wb") as fd:
         fd.write(response.content)
