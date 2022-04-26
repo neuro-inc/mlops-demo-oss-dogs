@@ -1,8 +1,8 @@
 <View>
   <Image name="image" value="$image" zoom="true"/>
   <Choices name="choice" toName="image" showInLine="true">
-    <Choice value="Afghan Hound" background="blue"/>
-    <Choice value="Malteese Dog" background="green"/>
+    <Choice value="Afghan hound" background="blue"/>
+    <Choice value="Maltese dog" background="green"/>
   </Choices>
 </View>
 

@@ -1,3 +1,3 @@
 [storage]
-cp-exclude = [".git", ".neuro", ".dvc", "dvc_cache", "__pycache__"]
+cp-exclude = [".git", ".dvc", "dvc_cache", "__pycache__"]
 cp-exclude-from-files=[".neuroignore", ".gitignore"]

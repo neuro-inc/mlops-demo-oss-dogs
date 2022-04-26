@@ -25,7 +25,6 @@ def train(args: argparse.Namespace) -> None:
     Training script copied from here
     https://github.com/elleobrien/Dog_Breed_Classifier/blob/master/breed_classifier.py
     """
-    # todo: try PYTHONHASHSEED
     np.random.seed(RD_SEED)
     tf.random.set_seed(RD_SEED)
     rn.seed(RD_SEED)
@@ -51,6 +50,8 @@ def train(args: argparse.Namespace) -> None:
     )
 
     model = get_model()
+
+    print(train_ds)
 
     history = model.fit(
         train_ds,

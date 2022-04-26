@@ -1,0 +1,264 @@
+kind: live
+title: demo-oss-dogs
+id: mlops_demo_oss_dogs
+
+jobs:
+  prepare_remote_dataset:
+    name: $[[ flow.title ]]-prepare-dataset
+    image: neuromation/neuro-extras:20.12.15
+    detach: False
+    volumes:
+      - ${{ volumes.remote_dataset.ref_rw }}
+    params:
+      dataset_path:
+        default: http://vision.stanford.edu/aditya86/ImageNetDogs/images.tar
+        descr: URL of dataset to download
+    bash: |
+      DST=$(basename ${{ params.dataset_path }} .tar)
+      if [ ! -e ${{ volumes.remote_dataset.mount }}/$DST ]; then
+        neuro-extras data cp --extract --use-temp-dir ${{ params.dataset_path }} ${{ volumes.remote_dataset.mount }}/$DST;
+      else
+        echo "Dataset is already downloaded, skipping."
+      fi
+
+  extend_data:
+    name: $[[ flow.title ]]-extend-data
+    image: $[[ images.train.ref ]]
+    detach: False
+    pass_config: True
+    volumes:
+      - ${{ volumes.remote_dataset.ref_ro }}
+      - ${{ upload(volumes.config).ref_ro }}
+      - ${{ upload(volumes.label_studio).ref_ro }}
+    env:
+      PYTHONPATH: /usr/project
+    params:
+      extend_dataset_by:
+        default: "1"
+        descr: |
+          How many new images to add into current dataset.
+    bash: |
+      export DATA_PATH=${PROJECT}/data/images
+      mkdir -p $DATA_PATH
+
+      # Init S3
+      [[ -z $(neuro blob ls blob:${BUCKET_NAME}) ]] && echo "Bucket is empty" \
+        || neuro blob cp -rT blob:${BUCKET_NAME} $(dirname ${DATA_PATH}) # download data if the bucket is not empty
+
+      echo "Extending dataset"
+      python ${PROJECT}/label_studio/extend_dataset.py \
+        --cur_dataset ${DATA_PATH} \
+        --full_dataset ${{ volumes.remote_dataset.mount }}/images/Images/ \
+        --nmber_of_imgs ${{ params.extend_dataset_by }}
+
+      # Upload dataset to S3"
+      neuro blob cp -ru ${DATA_PATH} blob:${BUCKET_NAME}
+
+      # Validate dataset:
+      neuro blob ls -r blob:${BUCKET_NAME} | tee
+      echo "Total images: $(neuro blob ls -r blob:${BUCKET_NAME}/images/ | grep -oP '\w*\.\w+$' | wc -l)" # grep files only
+
+  label_studio:
+    image: $[[ images.label_studio.ref ]]
+    name: $[[ flow.title ]]-label-studio
+    http_port: 443
+    http_auth: False
+    life_span: 1d
+    pass_config: True
+    detach: False
+    browse: True
+    volumes:
+      - ${{ upload(volumes.config).ref_ro }}
+      - ${{ upload(volumes.label_studio).ref_ro }}
+    env:
+      DATA_PATH: /usr/project/data/Images
+      LABEL_STUDIO_LOCAL_FILES_SERVING_ENABLED: True
+      LABEL_STUDIO_PROJECT: /label-studio-project
+      LS_TOKEN: secret:ls-token
+      LS_PORT: 443
+    bash: |
+      # Pull from S3
+      mkdir -p ${PROJECT}/data
+      neuro blob cp blob:${BUCKET_NAME}/label_studio.sqlite3 "${PROJECT}/data/label_studio.sqlite3" || echo Label Studio data was not found
+
+
+      COMPLETIONS=${LABEL_STUDIO_PROJECT}/completions
+      mkdir -p ${COMPLETIONS}
+
+      if [[ -f "${PROJECT}/data/label_studio.sqlite3" ]];
+      then
+        echo Restoring existing label studio data
+        cp ${PROJECT}/data/label_studio.sqlite3 /label-studio/data/label_studio.sqlite3
+      else
+        echo Initializing label studio
+        label-studio init dogs --username test@neu.ro --password 12345678 \
+                --user-token ${LS_TOKEN}  \
+                --label-config ${PROJECT}/label_studio/LabelConfig.xml
+      fi
+
+      export S3_CREDENTIALS=$(neuro blob statcredentials $CREDENTIALS)
+      export BUCKET=$(neuro blob statcredentials $CREDENTIALS | grep bucket_name | awk '{print $2}')
+      export REGION=$(neuro blob statcredentials $CREDENTIALS | grep region_name | awk '{print $2}')
+      export ENDPOINT=$(neuro blob statcredentials $CREDENTIALS | grep endpoint_url | awk '{print $2}')
+      export KEY_ID=$(neuro blob statcredentials $CREDENTIALS | grep access_key_id | awk '{print $2}')
+      export KEY=$(neuro blob statcredentials $CREDENTIALS | grep secret_access_key | awk '{print $2}')
+
+      echo "Starting label-studio"
+      python3 ${PROJECT}/label_studio/launch_ls.py \
+        --project_root ${PROJECT} \
+        --bucket ${BUCKET} \
+        --region_name ${REGION} \
+        --s3_endpoint ${ENDPOINT} \
+        --aws_access_key_id ${KEY_ID} \
+        --aws_secret_access_key ${KEY} \
+        -- \
+        start dogs --port ${LS_PORT} --no-browser
+
+
+      # Push labeling completions (label studio-specific files) and annotation results
+      neuro blob cp ${PROJECT}/data/result.json blob:${BUCKET_NAME}
+      neuro blob cp /label-studio/data/label_studio.sqlite3 blob:${BUCKET_NAME}
+
+      # Validate dataset:
+      neuro blob ls -r blob:${BUCKET_NAME} | tee
+      echo "Total images: $(neuro blob ls -r blob:${BUCKET_NAME}/images/ | grep -oP '\w*\.\w+$' | wc -l)" # grep files only
+
+  deploy_inference_platform:
+    image: $[[ images.seldon.ref ]]
+    name: $[[ flow.title ]]-test-inference
+    preset: gpu-small
+    http_port: 5000
+    http_auth: False
+    life_span: 5h
+    detach: True
+    params:
+      run_id:
+        descr: MLFlow run ID, which model should be deployed
+      mlflow_storage:
+        descr: Storage path, where MLFlow server stores model binaries
+        default: 'storage:/${{ project.owner }}/${{ project.id }}/mlruns'
+    volumes:
+      - ${{ params.mlflow_storage }}/0/${{ params.run_id }}/artifacts/model/data/model.h5:/storage/model.h5
+
+  locust:
+    image: locustio/locust:1.4.1
+    name: $[[ flow.title ]]-locust
+    http_port: 8080
+    http_auth: False
+    life_span: 1d
+    detach: True
+    browse: True
+    params:
+      endpoint_url:
+        default: ~
+        descr: |
+          Examples:
+          https://demo-oss-dogs-test-inference--<user-name>.jobs.<cluster-name>.org.neu.ro/api/v1.0/predictions - if model deployed as platform job
+          http://seldon.<cluster-name>.org.neu.ro/seldon/seldon/<model-name>-<model-stage>/api/v1.0/predictions -if model is deployed in Seldon
+    volumes:
+      - $[[ upload(volumes.src).ref_ro ]]
+      - $[[ upload(volumes.config).ref_ro ]]
+      - $[[ volumes.remote_dataset.ref_ro ]]
+    env:
+      DOG_IDS: "n02085936, n02088094"
+      IMGS_DIR: $[[ volumes.remote_dataset.mount ]]/images/Images/
+      PYTHONPATH: $[[ volumes.src.mount ]]/..
+    cmd: |
+      -f $[[ volumes.src.mount ]]/locust.py --web-port 8080 -H $[[ params.endpoint_url ]]
+
+  jupyter:
+    image: $[[ images.train.ref ]]
+    name: $[[ flow.title ]]-jupyter
+    preset: gpu-small
+    http_port: 8888
+    http_auth: False
+    browse: True
+    detach: False
+    pass_config: True
+    volumes:
+      - "${{ upload(volumes.notebooks).ref_rw }}"
+      - ${{ params.mlflow_storage }}/0/${{ params.run_id }}/artifacts/model/data/model.h5:/storage/model.h5
+    env:
+      PYTHONPATH: /usr/project
+      EXPOSE_SSH: "yes"
+      DATA_PATH: /usr/project/data/Images
+    params:
+      run_id:
+        descr: MLFlow run ID, which model should be deployed
+      mlflow_storage:
+        descr: Storage path, where MLFlow server stores model binaries
+    bash: |
+      mkdir -p $DATA_PATH
+
+      # Download data
+      [[ -z $(neuro blob ls blob:${BUCKET_NAME}) ]] && echo "Bucket is empty" \
+        || neuro blob cp -rT blob:${BUCKET_NAME}/images $(dirname ${DATA_PATH}) # download data if the bucket is not empty
+
+      jupyter notebook  \
+        --no-browser \
+        --ip=0.0.0.0 \
+        --port=8888 \
+        --allow-root \
+        --NotebookApp.token= \
+        --notebook-dir=${{ volumes.notebooks.mount }} \
+        --NotebookApp.shutdown_no_activity_timeout=7200 \
+        --MappingKernelManager.cull_idle_timeout=7200
+
+# Additional jobs
+  filebrowser:
+    # https://neu-ro.gitbook.io/neuro-flow/reference/actions-syntax
+    action: gh:neuro-actions/filebrowser@v1.0.1
+    args:
+      volumes_project_remote: storage:$[[ flow.flow_id ]]
+
+  train:
+    image: $[[ images.train.ref ]]
+    preset: cpu-medium
+    life_span: 10d
+    volumes:
+      - storage:${{ flow.flow_id }}/mlruns:/usr/local/share/mlruns
+      - ${{ upload(volumes.project).ref }}
+    env:
+      EXPOSE_SSH: "yes"
+      PYTHONPATH: /usr/project
+    pass_config: True
+    bash: |
+      # Pull dataset:
+      export DATA_PATH=${PROJECT}/data/images
+      mkdir -p $DATA_PATH
+
+      [[ -z $(neuro blob ls blob:${BUCKET_NAME}) ]] && echo "Bucket is empty" \
+        || neuro blob cp -rT blob:${BUCKET_NAME} $(dirname ${DATA_PATH}) # download data if the bucket is not empty
+
+      python -u ${{ volumes.project.mount }}/src/train.py \
+        --data_dir ${{ volumes.project.mount }}/data/images \
+        --data_description ${{ volumes.project.mount }}/data/result.json
+
+  postgres:
+    image: postgres:12.5
+    name: $[[ flow.title ]]-postgres
+    preset: cpu-small
+    life_span: 30d
+    detach: True
+    volumes:
+      - disk:mlops-demo-oss-dogs-postgres:/var/lib/postgresql/data:rw
+    env:
+      POSTGRES_PASSWORD: password
+      POSTGRES_INITDB_ARGS: ""
+      PGDATA: /var/lib/postgresql/data/pgdata
+
+  mlflow_server:
+    image: ghcr.io/neuro-inc/mlflow:v1.25.2
+    name: $[[ flow.title ]]-mlflow-server
+    preset: cpu-small
+    http_port: 5000
+    http_auth: False
+    browse: True
+    life_span: 30d
+    detach: True
+    volumes:
+      - storage:${{ flow.flow_id }}/mlruns:/usr/local/share/mlruns
+    cmd: |
+      server --host 0.0.0.0
+        --backend-store-uri=postgresql://postgres:password@${{ inspect_job('postgres').internal_hostname_named }}:5432
+        --default-artifact-root=/usr/local/share/mlruns
