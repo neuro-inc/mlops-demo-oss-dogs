@@ -9,7 +9,7 @@ defaults:
     PROJECT: /usr/project
     BUCKET_NAME: mlops-demo-oss-dogs
     CREDENTIALS: mlops-demo-oss-dogs-credentials
-    MLFLOW_TRACKING_URI: https://demo-oss-dogs-mlflow-server--$[[ project.owner ]].jobs.default.org.neu.ro
+    MLFLOW_TRACKING_URI: https://demo-oss-dogs-mlflow-server--$[[ project.owner ]].jobs-dev.neu.ro
     PACHY_URI: pachyderm.green-hgx-2.org.neu.ro:30650
     PACHY_REPO: dogs-demo
     NEURO_CLI_DISABLE_PYPI_VERSION_CHECK: true

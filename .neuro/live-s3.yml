@@ -174,6 +174,7 @@ jobs:
     http_auth: False
     browse: True
     detach: False
+    pass_config: True
     volumes:
       - "${{ upload(volumes.notebooks).ref_rw }}"
       - ${{ params.mlflow_storage }}/0/${{ params.run_id }}/artifacts/model/data/model.h5:/storage/model.h5
@@ -191,7 +192,7 @@ jobs:
 
       # Download data
       [[ -z $(neuro blob ls blob:${BUCKET_NAME}) ]] && echo "Bucket is empty" \
-        || neuro blob cp -r blob:${BUCKET_NAME} $(dirname ${DATA_PATH}) # download data if the bucket is not empty
+        || neuro blob cp -rT blob:${BUCKET_NAME}/images $(dirname ${DATA_PATH}) # download data if the bucket is not empty
 
       jupyter notebook  \
         --no-browser \
@@ -216,7 +217,7 @@ jobs:
     life_span: 10d
     volumes:
       - storage:${{ flow.flow_id }}/mlruns:/usr/local/share/mlruns
-      - ${{ volumes.project.ref }}
+      - ${{ upload(volumes.project).ref }}
     env:
       EXPOSE_SSH: "yes"
       PYTHONPATH: /usr/project
