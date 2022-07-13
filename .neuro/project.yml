@@ -9,7 +9,7 @@ defaults:
     PROJECT: /usr/project
     BUCKET_NAME: mlops-demo-oss-dogs
     CREDENTIALS: mlops-demo-oss-dogs-credentials
-    MLFLOW_TRACKING_URI: https://demo-oss-dogs-mlflow-server--$[[ project.owner ]].jobs-dev.neu.ro
+    MLFLOW_TRACKING_URI: https://demo-oss-dogs-mlflow-server--yevheniisemendiak.jobs.green-a4000-1.org.neu.ro
     PACHY_URI: pachyderm.green-hgx-2.org.neu.ro:30650
     PACHY_REPO: dogs-demo
     NEURO_CLI_DISABLE_PYPI_VERSION_CHECK: true
@@ -46,7 +46,7 @@ images:
     context: $[[ flow.workspace ]]/
     build_preset: cpu-medium
   seldon:
-    ref: image:/$[[ project.owner ]]/$[[ flow.flow_id ]]/seldon:22.4.0
+    ref: image:/$[[ project.owner ]]/$[[ flow.flow_id ]]/seldon:22.7.0
     dockerfile: $[[ flow.workspace ]]/seldon/seldon.Dockerfile
     context: $[[ flow.workspace ]]/
     build_preset: cpu-medium

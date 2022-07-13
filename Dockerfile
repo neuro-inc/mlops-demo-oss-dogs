@@ -1,4 +1,4 @@
-FROM ghcr.io/neuro-inc/base:v22.2.1-devel
+FROM ghcr.io/neuro-inc/base:v22.5.0-devel
 
 # TODO: do not use /project dir since it persists and afterwards can't be used for git clone. use /tmp/project
 RUN mkdir -p /tmp/project

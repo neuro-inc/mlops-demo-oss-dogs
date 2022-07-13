@@ -46,15 +46,13 @@ Grant permissions for the new service account
 
 ```shell
 export USER=<YOUR_NEURO_USERNAME>
-export PROJECT=mlops_demo_oss_dogs
-export PREFIX="/${USER}/${PROJECT}/"
-export ACCOUNT=${USER}/service-accounts/${PROJECT//_/-}
-export ROLE=${USER}/projects/${PROJECT}
+export ACCOUNT=${USER}/service-accounts/mlops-demo-oss-dogs
+export ROLE=alexeynaiden/projects/mlops_demo_oss_dogs # from .neuro/project.yml
 
-neuro acl grant storage:${PREFIX} ${ROLE} write
-neuro acl grant job:/${ACCOUNT} ${ACCOUNT} manage
-neuro acl grant secret:ls-token ${ROLE} read
-neuro acl grant role://${ROLE} ${ACCOUNT} read
+neuro acl grant job:/${ACCOUNT} ${ACCOUNT} manage # give the service account an abbility to run the jobs
+neuro acl grant role://${ROLE} ${ACCOUNT} read   # give the service account access to the project
+neuro acl grant flow:/alexeynaiden/mlops_demo_oss_dogs ${ACCOUNT} write # give the service account access to the project flow
+neuro acl grant flow:/${ACCOUNT} ${ACCOUNT} manage  # give the service account access to own flows
 ```
 
 Create a Pachyderm pipeline that will (re)train the model on every dataset update:
@@ -93,7 +91,7 @@ neuro-flow run label_studio
 
 ```shell
 pachctl config update context default --pachd-address <Pachyderm server address>
-pachctl logs -f -p train 
+pachctl logs -f -p train-dogs
 ```
 
 - Pick a run ID value from MLFlow's Web UI and deploy the trained model as a REST API on the platform:
