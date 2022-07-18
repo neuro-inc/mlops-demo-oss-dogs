@@ -6,6 +6,8 @@
 !/config/pipeline.json
 /config/*.yml
 /.setup_done
+/remote_dataset/**/*
+/.neuro/live.yml
 
 !/**/.gitkeep
 

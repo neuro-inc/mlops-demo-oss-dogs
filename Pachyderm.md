@@ -46,12 +46,15 @@ Grant permissions for the new service account
 
 ```shell
 export USER=<YOUR_NEURO_USERNAME>
+export OWNER=alexeynaiden
+export PROJECT_ID=mlops_demo_oss_dogs
 export ACCOUNT=${USER}/service-accounts/mlops-demo-oss-dogs
-export ROLE=alexeynaiden/projects/mlops_demo_oss_dogs # from .neuro/project.yml
+export PROJECT_ROLE=${OWNER}/projects/${PROJECT_ID} # from .neuro/project.yml
 
 neuro acl grant job:/${ACCOUNT} ${ACCOUNT} manage # give the service account an abbility to run the jobs
+neuro acl grant storage:/${OWNER}/${PROJECT_ID} ${ACCOUNT} write # work-around for https://github.com/neuro-inc/neuro-flow/issues/815
 neuro acl grant role://${ROLE} ${ACCOUNT} read   # give the service account access to the project
-neuro acl grant flow:/alexeynaiden/mlops_demo_oss_dogs ${ACCOUNT} write # give the service account access to the project flow
+neuro acl grant flow:/${OWNER}/${PROJECT_ID} ${ACCOUNT} write # give the service account access to the owner's project flow
 neuro acl grant flow:/${ACCOUNT} ${ACCOUNT} manage  # give the service account access to own flows
 ```
 

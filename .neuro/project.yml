@@ -3,13 +3,13 @@ owner: alexeynaiden
 role: alexeynaiden/projects/mlops_demo_oss_dogs
 
 defaults:
-  preset: cpu-medium
+  preset: cpu-small
   life_span: 1d
   env:
     PROJECT: /usr/project
     BUCKET_NAME: mlops-demo-oss-dogs
     CREDENTIALS: mlops-demo-oss-dogs-credentials
-    MLFLOW_TRACKING_URI: https://demo-oss-dogs-mlflow-server--yevheniisemendiak.jobs.green-a4000-1.org.neu.ro
+    MLFLOW_TRACKING_URI: https://demo-oss-dogs-mlflow-server--yevheniisemendiak.jobs.green-hgx-1.org.neu.ro
     PACHY_URI: pachyderm.green-hgx-2.org.neu.ro:30650
     PACHY_REPO: dogs-demo
     NEURO_CLI_DISABLE_PYPI_VERSION_CHECK: true
@@ -18,6 +18,7 @@ volumes:
   remote_dataset:
     remote: storage:/$[[ project.owner ]]/$[[ flow.flow_id ]]/dataset
     mount: /dataset
+    local: remote_dataset
   src:
     remote: storage:/$[[ project.owner ]]/$[[ flow.flow_id ]]/src
     mount: /usr/project/src
